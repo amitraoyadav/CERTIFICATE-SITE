@@ -1,21 +1,9 @@
-import type { Request, Response } from 'express';
-import { app } from '../server';
+import { handleApiRequest } from './_handlers.ts';
 
 /**
- * Vercel Serverless Function Handler
- * Proxies incoming serverless requests to the shared, unified Express application.
- * Ensures consistent handling for:
- *  - Main Admin authentication (/api/auth/verify-main-admin) with password 'Scrapbyparivahan'
- *  - Full 920 certificates registry (/api/certificates)
- *  - Public verification engine (/api/verify)
- *  - Migration archives download (/api/migration/download/:filename)
- *  - Settings and sequential numbering systems
+ * Primary Vercel Serverless Function Entry Point.
+ * Dispatches all API requests through the consolidated handler.
  */
-export default function handler(req: Request, res: Response) {
-  // Normalize url if Vercel routes without leading /api
-  if (req.url && !req.url.startsWith('/api') && !req.url.startsWith('/?')) {
-    req.url = `/api${req.url.startsWith('/') ? req.url : `/${req.url}`}`;
-  }
-
-  return app(req, res);
+export default async function handler(req: any, res: any) {
+  return handleApiRequest(req, res);
 }
