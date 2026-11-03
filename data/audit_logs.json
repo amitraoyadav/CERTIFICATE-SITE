@@ -1,5 +1,18 @@
 [
   {
+    "id": "audit-1793721491310-57390195",
+    "timestamp": "2026-11-03T15:58:11.310Z",
+    "certificateId": "cert-1793721491285-9c098e6d3a86",
+    "certificateNumber": "PS/26/R5N3G6Q",
+    "action": "CERTIFICATE_CREATED",
+    "actor": "administrator",
+    "newStatus": "VALID",
+    "dataHash": "bf2416d250287a44cc5ef64abd9d9bc90e77efce613bf1f4fc0f8ab885c81bb0",
+    "details": "Official certificate PS/26/R5N3G6Q created for TEST VERIFICATION USER with verified unique random allocation.",
+    "ip": "127.0.0.1",
+    "userAgent": "Unknown"
+  },
+  {
     "id": "audit-1793616579824-6557f009",
     "timestamp": "2026-11-02T10:49:39.824Z",
     "certificateId": "cert-1793616579739-a6b9db8a2391",

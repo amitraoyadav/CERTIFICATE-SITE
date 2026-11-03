@@ -1,5 +1,46 @@
 [
   {
+    "id": "cert-1793721491285-9c098e6d3a86",
+    "certificateNumber": "PS/26/R5N3G6Q",
+    "scrappingRegistrationNumber": "REG-C4AK92A",
+    "ownerName": "TEST VERIFICATION USER",
+    "address": "Not Provided",
+    "idProofNumber": "Not Provided",
+    "vehicleRegistrationNumber": "DL 99 ZZ 9999",
+    "chassisNumber": "TESTCHASSIS9999",
+    "engineNumber": "TESTENGINE9999",
+    "showFullChassisEngine": false,
+    "make": "Hero Honda",
+    "model": "Splendor",
+    "location": "Delhi NCR",
+    "yearOfManufacture": "2026",
+    "dateOfHandover": "03-11-2026",
+    "dateOfIssue": "03-11-2026",
+    "qrToken": "tok_978bb30f7707d805",
+    "verificationUrl": "/verify?certificateNumber=PS%2F26%2FR5N3G6Q&token=tok_978bb30f7707d805",
+    "status": "VALID",
+    "isLocked": true,
+    "isImmutable": true,
+    "version": 1,
+    "issuedAt": "2026-11-03T15:58:11.285Z",
+    "lockedAt": "2026-11-03T15:58:11.285Z",
+    "createdBy": "Administrator",
+    "companySnapshot": {
+      "companyName": "PARIVAHAN SCRAPPERS",
+      "companySubtitle": "A Unit OF Scrapping Yard Ltd.",
+      "address": "B12, Dwarka, New Delhi.",
+      "phone": "8506925495",
+      "website": "https://parivahan-scrappers.netlify.app/",
+      "signatoryTitle": "Authorised Signatory"
+    },
+    "createdAt": "2026-11-03T15:58:11.285Z",
+    "updatedAt": "2026-11-03T15:58:11.285Z",
+    "dataHash": "bf2416d250287a44cc5ef64abd9d9bc90e77efce613bf1f4fc0f8ab885c81bb0",
+    "aliases": [
+      "PS/26/R5N3G6Q"
+    ]
+  },
+  {
     "id": "cert-1793703599957-4c24f701e58a",
     "certificateNumber": "PS/26/R1000824",
     "scrappingRegistrationNumber": "REG-C273664",

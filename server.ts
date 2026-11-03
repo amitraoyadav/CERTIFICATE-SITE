@@ -26,7 +26,7 @@ import type {
   PdfImportReport,
 } from './src/types';
 
-const PORT = 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 const DATA_DIR = path.join(process.cwd(), 'data');
 const CERTIFICATES_FILE = path.join(DATA_DIR, 'certificates.json');
 const BACKUP_CERTIFICATES_FILE = path.join(DATA_DIR, 'certificates_backup.json');
@@ -2118,46 +2118,45 @@ export function configureExpressApp(): express.Application {
       const uniqueSeqs = getNextUniqueSequenceNumbers(certs, reserved, settings);
 
       let candidateCertNo = '';
-      if (req.body.certificateNumber && typeof req.body.certificateNumber === 'string' && req.body.certificateNumber.trim()) {
+      if (req.body.certificateNumber && typeof req.body.certificateNumber === 'string' && req.body.certificateNumber.trim() && !req.body.certificateNumber.includes('Loading')) {
         candidateCertNo = req.body.certificateNumber.trim().toUpperCase();
         if (
           certs.some((c) => c.certificateNumber.toUpperCase() === candidateCertNo || (c.aliases && c.aliases.map((a) => a.toUpperCase()).includes(candidateCertNo))) ||
           reserved.certificateNumbers.some((n) => n.toUpperCase() === candidateCertNo)
         ) {
-          return res.status(409).json({
-            message: `Certificate Number ${candidateCertNo} already exists or is permanently reserved. Issued certificates cannot be overwritten or reused.`,
-          });
+          candidateCertNo = generateUniqueRandomCertNumber(certs, reserved);
         }
       } else {
         candidateCertNo = uniqueSeqs.candidateCertNo;
-        while (
-          certs.some((c) => c.certificateNumber.toUpperCase() === candidateCertNo.toUpperCase() || (c.aliases && c.aliases.map((a) => a.toUpperCase()).includes(candidateCertNo.toUpperCase()))) ||
-          reserved.certificateNumbers.some((n) => n.toUpperCase() === candidateCertNo.toUpperCase())
-        ) {
-          candidateCertNo = generateUniqueRandomCertNumber(certs, reserved);
-        }
+      }
+
+      while (
+        certs.some((c) => c.certificateNumber.toUpperCase() === candidateCertNo.toUpperCase() || (c.aliases && c.aliases.map((a) => a.toUpperCase()).includes(candidateCertNo.toUpperCase()))) ||
+        reserved.certificateNumbers.some((n) => n.toUpperCase() === candidateCertNo.toUpperCase())
+      ) {
+        candidateCertNo = generateUniqueRandomCertNumber(certs, reserved);
       }
 
       let candidateScrapNo = '';
-      if (req.body.scrappingRegistrationNumber && typeof req.body.scrappingRegistrationNumber === 'string' && req.body.scrappingRegistrationNumber.trim()) {
+      if (req.body.scrappingRegistrationNumber && typeof req.body.scrappingRegistrationNumber === 'string' && req.body.scrappingRegistrationNumber.trim() && !req.body.scrappingRegistrationNumber.includes('Loading')) {
         candidateScrapNo = req.body.scrappingRegistrationNumber.trim().toUpperCase();
         if (
           certs.some((c) => c.scrappingRegistrationNumber.toUpperCase() === candidateScrapNo) ||
-          reserved.scrappingNumbers.some((n) => n.toUpperCase() === candidateScrapNo)
-        ) {
-          return res.status(409).json({
-            message: `Scrapping Registration Number ${candidateScrapNo} already exists or is permanently reserved. Must be permanently unique.`,
-          });
-        }
-      } else {
-        candidateScrapNo = uniqueSeqs.candidateScrapNo;
-        while (
-          certs.some((c) => c.scrappingRegistrationNumber.toUpperCase() === candidateScrapNo.toUpperCase()) ||
-          reserved.scrappingNumbers.some((n) => n.toUpperCase() === candidateScrapNo.toUpperCase()) ||
+          reserved.scrappingNumbers.some((n) => n.toUpperCase() === candidateScrapNo) ||
           candidateScrapNo.toUpperCase() === candidateCertNo.toUpperCase()
         ) {
           candidateScrapNo = generateUniqueRandomScrapNumber(certs, reserved);
         }
+      } else {
+        candidateScrapNo = uniqueSeqs.candidateScrapNo;
+      }
+
+      while (
+        certs.some((c) => c.scrappingRegistrationNumber.toUpperCase() === candidateScrapNo.toUpperCase()) ||
+        reserved.scrappingNumbers.some((n) => n.toUpperCase() === candidateScrapNo.toUpperCase()) ||
+        candidateScrapNo.toUpperCase() === candidateCertNo.toUpperCase()
+      ) {
+        candidateScrapNo = generateUniqueRandomScrapNumber(certs, reserved);
       }
 
       // Reserve numbers atomically so no concurrent caller can take them

@@ -1,85 +1,359 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import type { Certificate } from '../src/types';
+import type {
+  Certificate,
+  SystemSettings,
+  DashboardStats,
+  AuditLogEntry,
+  DatabaseBackupInfo,
+  DriveSyncLog,
+  CompanySnapshot,
+} from '../src/types';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const CERTIFICATES_FILE = path.join(DATA_DIR, 'certificates.json');
+const BACKUP_CERTIFICATES_FILE = path.join(DATA_DIR, 'certificates_backup.json');
+const MASTER_REGISTRY_FILE = path.join(DATA_DIR, 'MASTER_AUTHORITATIVE_REGISTRY.json');
+const ALL_920_FILE = path.join(DATA_DIR, 'ALL_920_CERTIFICATES.json');
+const EMBEDDED_BASELINE_FILE = path.join(process.cwd(), 'src/data/authoritativePreservedCertificates.json');
 const RESERVED_NUMBERS_FILE = path.join(DATA_DIR, 'reserved_numbers.json');
+const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
+const AUDIT_LOG_FILE = path.join(DATA_DIR, 'audit_logs.json');
+const AUDIT_BACKUP_FILE = path.join(DATA_DIR, 'audit_logs_backup.json');
+const DRIVE_SYNC_LOGS_FILE = path.join(DATA_DIR, 'drive_sync_logs.json');
+const DATABASE_BACKUPS_DIR = path.join(DATA_DIR, 'database_backups');
 
+// Ensure required directories exist
+try {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  if (!fs.existsSync(DATABASE_BACKUPS_DIR)) fs.mkdirSync(DATABASE_BACKUPS_DIR, { recursive: true });
+} catch {}
+
+// Default System Settings
+export const DEFAULT_SETTINGS: SystemSettings = {
+  companyName: 'PARIVAHAN SCRAPPERS',
+  companySubtitle: 'A Unit OF Scrapping Yard Ltd.',
+  address: 'B12, Dwarka, New Delhi.',
+  phone: '8506925495',
+  website: 'https://parivahan-scrappers.netlify.app/',
+  signatoryTitle: 'Authorised Signatory',
+  certificatePrefix: 'PS/26/R',
+  certificateNextSeq: 1011,
+  scrappingPrefix: 'REG-C',
+  scrappingNextSeq: 272840,
+  warnDuplicateVehicle: true,
+  adminUsername: 'pscrappers',
+  adminPasswordHash: 'Scrap123',
+};
+
+// Concurrency Mutex for transactional certificate creation & numbering
+class CreationMutex {
+  private queue = Promise.resolve();
+  acquire(): Promise<() => void> {
+    let release: () => void = () => {};
+    const p = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const current = this.queue.then(() => release);
+    this.queue = this.queue.then(() => p);
+    return current;
+  }
+}
+export const certCreationMutex = new CreationMutex();
+
+// In-memory cache to ensure speed and state preservation across requests
 let inMemoryCertificates: Certificate[] | null = null;
+let inMemorySettings: SystemSettings | null = null;
+let inMemoryReservedNumbers: { certificateNumbers: string[]; scrappingNumbers: string[] } | null = null;
+let inMemoryAuditLogs: AuditLogEntry[] | null = null;
 
+/**
+ * Deduplicate certificates by normalized certificate number, preserving rich data & aliases
+ */
+export function deduplicateCertificates(list: Certificate[]): Certificate[] {
+  if (!Array.isArray(list)) return [];
+  const map = new Map<string, Certificate>();
+
+  for (const item of list) {
+    if (!item) continue;
+    const certNo = String(item.certificateNumber || '').trim().toUpperCase();
+    if (!certNo || certNo === 'PS/26/R' || certNo === 'UNDEFINED' || certNo === 'NULL') {
+      continue;
+    }
+
+    const cleanItem = { ...item };
+    const existing = map.get(certNo);
+    if (!existing) {
+      const base: Certificate = {
+        ...cleanItem,
+        certificateNumber: certNo,
+        isLocked: true,
+        isImmutable: true,
+        version: cleanItem.version || 1,
+        aliases: cleanItem.aliases ? Array.from(new Set([certNo, ...cleanItem.aliases])) : [certNo],
+        issuedAt: cleanItem.issuedAt || cleanItem.createdAt || new Date().toISOString(),
+        lockedAt: cleanItem.lockedAt || cleanItem.createdAt || new Date().toISOString(),
+      };
+      base.dataHash = cleanItem.dataHash || computeCanonicalHash(base);
+      map.set(certNo, base);
+    } else {
+      const keep = { ...existing };
+      if (!keep.vehicleRegistrationNumber || keep.vehicleRegistrationNumber === 'Not Provided') {
+        keep.vehicleRegistrationNumber = cleanItem.vehicleRegistrationNumber || keep.vehicleRegistrationNumber;
+      }
+      if (!keep.chassisNumber || keep.chassisNumber === 'Not Provided') {
+        keep.chassisNumber = cleanItem.chassisNumber || keep.chassisNumber;
+      }
+      if (!keep.engineNumber || keep.engineNumber === 'Not Provided') {
+        keep.engineNumber = cleanItem.engineNumber || keep.engineNumber;
+      }
+      if (cleanItem.aliases) {
+        keep.aliases = Array.from(new Set([...(keep.aliases || [certNo]), ...cleanItem.aliases, certNo]));
+      }
+      map.set(certNo, keep);
+    }
+  }
+
+  return Array.from(map.values());
+}
+
+/**
+ * Retrieve all certificates from storage with resilient multi-tier fallback
+ */
 export function getDatabaseCertificates(): Certificate[] {
-  if (inMemoryCertificates && inMemoryCertificates.length >= 938) {
+  if (inMemoryCertificates && inMemoryCertificates.length > 0) {
     return inMemoryCertificates;
   }
 
-  // 1. Try reading from filesystem if available
+  // 1. Try reading primary CERTIFICATES_FILE
   try {
     if (fs.existsSync(CERTIFICATES_FILE)) {
       const raw = fs.readFileSync(CERTIFICATES_FILE, 'utf-8');
       if (raw && raw.trim()) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length >= 938) {
-          inMemoryCertificates = parsed;
-          return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          inMemoryCertificates = deduplicateCertificates(parsed);
+          return inMemoryCertificates;
         }
       }
     }
   } catch (err) {
-    console.warn('[DB] Filesystem read warning, falling back to embedded baseline:', err);
+    console.warn('[DB] Primary certificates read notice:', err);
   }
 
-  // 2. Fallback to authoritative baseline file
+  // 2. Try MASTER_REGISTRY_FILE
   try {
-    const baselinePath = path.join(process.cwd(), 'src/data/authoritativePreservedCertificates.json');
-    if (fs.existsSync(baselinePath)) {
-      const raw = fs.readFileSync(baselinePath, 'utf-8');
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        inMemoryCertificates = parsed;
-        return parsed;
+    if (fs.existsSync(MASTER_REGISTRY_FILE)) {
+      const raw = fs.readFileSync(MASTER_REGISTRY_FILE, 'utf-8');
+      if (raw && raw.trim()) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          inMemoryCertificates = deduplicateCertificates(parsed);
+          return inMemoryCertificates;
+        }
+      }
+    }
+  } catch {}
+
+  // 3. Try ALL_920_FILE
+  try {
+    if (fs.existsSync(ALL_920_FILE)) {
+      const raw = fs.readFileSync(ALL_920_FILE, 'utf-8');
+      if (raw && raw.trim()) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          inMemoryCertificates = deduplicateCertificates(parsed);
+          return inMemoryCertificates;
+        }
+      }
+    }
+  } catch {}
+
+  // 4. Try bundled baseline in code repository
+  try {
+    if (fs.existsSync(EMBEDDED_BASELINE_FILE)) {
+      const raw = fs.readFileSync(EMBEDDED_BASELINE_FILE, 'utf-8');
+      if (raw && raw.trim()) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          inMemoryCertificates = deduplicateCertificates(parsed);
+          return inMemoryCertificates;
+        }
       }
     }
   } catch (baselineErr) {
-    console.warn('[DB] Authoritative baseline read warning:', baselineErr);
+    console.warn('[DB] Authoritative baseline read notice:', baselineErr);
   }
 
   inMemoryCertificates = [];
   return inMemoryCertificates;
 }
 
-export function getReservedNumbers(): { certificateNumbers: string[]; scrappingNumbers: string[] } {
-  try {
-    if (fs.existsSync(RESERVED_NUMBERS_FILE)) {
-      const raw = fs.readFileSync(RESERVED_NUMBERS_FILE, 'utf-8');
-      if (raw && raw.trim()) {
-        const parsed = JSON.parse(raw);
-        return {
-          certificateNumbers: Array.isArray(parsed.certificateNumbers) ? parsed.certificateNumbers : [],
-          scrappingNumbers: Array.isArray(parsed.scrappingNumbers) ? parsed.scrappingNumbers : [],
-        };
-      }
-    }
-  } catch {}
-  return { certificateNumbers: [], scrappingNumbers: [] };
-}
-
+/**
+ * Persist certificates safely and update in-memory cache
+ */
 export function saveDatabaseCertificates(certs: Certificate[]): void {
-  inMemoryCertificates = certs;
+  const deduped = deduplicateCertificates(certs);
+  inMemoryCertificates = deduped;
+
   try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    fs.writeFileSync(CERTIFICATES_FILE, JSON.stringify(certs, null, 2), 'utf-8');
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    const jsonStr = JSON.stringify(deduped, null, 2);
+    fs.writeFileSync(CERTIFICATES_FILE, jsonStr, 'utf-8');
+
+    try {
+      fs.writeFileSync(BACKUP_CERTIFICATES_FILE, jsonStr, 'utf-8');
+    } catch {}
+
+    try {
+      fs.writeFileSync(MASTER_REGISTRY_FILE, jsonStr, 'utf-8');
+    } catch {}
   } catch (err) {
     console.warn('[DB] Persistent filesystem write notice (in-memory updated):', err);
   }
 }
 
 /**
- * Generate cryptographically secure random alphanumeric string
- * using characters: 23456789ABCDEFGHJKLMNPQRSTUVWXYZ (no confusing 0, O, 1, I)
+ * Retrieve reserved serial numbers
+ */
+export function getReservedNumbers(): { certificateNumbers: string[]; scrappingNumbers: string[] } {
+  if (inMemoryReservedNumbers) {
+    return inMemoryReservedNumbers;
+  }
+  try {
+    if (fs.existsSync(RESERVED_NUMBERS_FILE)) {
+      const raw = fs.readFileSync(RESERVED_NUMBERS_FILE, 'utf-8');
+      if (raw && raw.trim()) {
+        const parsed = JSON.parse(raw);
+        inMemoryReservedNumbers = {
+          certificateNumbers: Array.isArray(parsed.certificateNumbers) ? parsed.certificateNumbers : [],
+          scrappingNumbers: Array.isArray(parsed.scrappingNumbers) ? parsed.scrappingNumbers : [],
+        };
+        return inMemoryReservedNumbers;
+      }
+    }
+  } catch {}
+
+  inMemoryReservedNumbers = { certificateNumbers: [], scrappingNumbers: [] };
+  return inMemoryReservedNumbers;
+}
+
+/**
+ * Permanently reserve certificate & scrapping numbers
+ */
+export function reserveNumber(certNo?: string, scrapNo?: string): void {
+  const current = getReservedNumbers();
+  let modified = false;
+
+  if (certNo && certNo.trim()) {
+    const cleanCert = certNo.trim().toUpperCase();
+    if (!current.certificateNumbers.some((n) => n.toUpperCase() === cleanCert)) {
+      current.certificateNumbers.push(cleanCert);
+      modified = true;
+    }
+  }
+
+  if (scrapNo && scrapNo.trim()) {
+    const cleanScrap = scrapNo.trim().toUpperCase();
+    if (!current.scrappingNumbers.some((n) => n.toUpperCase() === cleanScrap)) {
+      current.scrappingNumbers.push(cleanScrap);
+      modified = true;
+    }
+  }
+
+  if (modified) {
+    inMemoryReservedNumbers = current;
+    try {
+      if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+      fs.writeFileSync(RESERVED_NUMBERS_FILE, JSON.stringify(current, null, 2), 'utf-8');
+    } catch (e) {
+      console.warn('[DB] Reserved numbers write notice:', e);
+    }
+  }
+}
+
+/**
+ * System Settings accessor
+ */
+export function getSettings(): SystemSettings {
+  if (inMemorySettings) return inMemorySettings;
+  try {
+    if (fs.existsSync(SETTINGS_FILE)) {
+      const raw = fs.readFileSync(SETTINGS_FILE, 'utf-8');
+      if (raw && raw.trim()) {
+        inMemorySettings = { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+        return inMemorySettings;
+      }
+    }
+  } catch {}
+  inMemorySettings = DEFAULT_SETTINGS;
+  return inMemorySettings;
+}
+
+export function saveSettings(settings: SystemSettings): void {
+  inMemorySettings = settings;
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('[DB] Settings write notice:', err);
+  }
+}
+
+/**
+ * Audit Logs accessor
+ */
+export function getAuditLogs(): AuditLogEntry[] {
+  if (inMemoryAuditLogs) return inMemoryAuditLogs;
+  try {
+    if (fs.existsSync(AUDIT_LOG_FILE)) {
+      const raw = fs.readFileSync(AUDIT_LOG_FILE, 'utf-8');
+      if (raw && raw.trim()) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          inMemoryAuditLogs = parsed;
+          return inMemoryAuditLogs;
+        }
+      }
+    }
+  } catch {}
+  inMemoryAuditLogs = [];
+  return inMemoryAuditLogs;
+}
+
+export function recordAuditLog(
+  entry: Omit<AuditLogEntry, 'id' | 'timestamp'>,
+  req?: any
+): AuditLogEntry {
+  const logs = getAuditLogs();
+  const logItem: AuditLogEntry = {
+    id: `audit-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`,
+    timestamp: new Date().toISOString(),
+    ...entry,
+    ip: req ? (req.headers?.['x-forwarded-for'] as string) || req.socket?.remoteAddress || '127.0.0.1' : entry.ip || '127.0.0.1',
+    userAgent: req ? req.headers?.['user-agent'] || 'Unknown' : entry.userAgent || 'Unknown',
+  };
+  logs.unshift(logItem);
+  if (logs.length > 500) logs.length = 500;
+  inMemoryAuditLogs = logs;
+
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    const jsonStr = JSON.stringify(logs, null, 2);
+    fs.writeFileSync(AUDIT_LOG_FILE, jsonStr, 'utf-8');
+    try {
+      fs.writeFileSync(AUDIT_BACKUP_FILE, jsonStr, 'utf-8');
+    } catch {}
+  } catch (e) {
+    console.warn('[DB] Audit log write notice:', e);
+  }
+  return logItem;
+}
+
+/**
+ * Cryptographically secure random alphanumeric string generator
+ * Uses character set with high visual distinctiveness: 23456789ABCDEFGHJKLMNPQRSTUVWXYZ
  */
 export function generateRandomCode(length = 6): string {
   const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
@@ -92,9 +366,7 @@ export function generateRandomCode(length = 6): string {
 }
 
 /**
- * Generate random certificate number in format: PS/26/R + 6 random alphanumeric characters
- * Example: PS/26/R7K4M92, PS/26/R2N8X51, PS/26/R9B3T76, PS/26/R5W1K84
- * Guarantees zero collisions against existing certificates and reserved numbers with retry loop.
+ * Generate guaranteed-unique certificate number: PS/26/R + 6 random uppercase alphanumeric chars
  */
 export function generateUniqueRandomCertNumber(
   certs: Certificate[],
@@ -126,8 +398,7 @@ export function generateUniqueRandomCertNumber(
 }
 
 /**
- * Generate random unique scrap registration number in format: REG-C + 6 random alphanumeric characters
- * Guarantees zero collisions with retry loop.
+ * Generate guaranteed-unique scrap registration number: REG-C + 6 random uppercase alphanumeric chars
  */
 export function generateUniqueRandomScrapNumber(
   certs: Certificate[],
@@ -192,9 +463,9 @@ export function computeCanonicalHash(cert: {
 }
 
 /**
- * Creates and persists a certificate from raw creation payload
+ * Creates and persists a certificate from raw creation payload with mutex safety & guaranteed uniqueness
  */
-export function createAndSaveCertificateRecord(payload: any): Certificate {
+export function createAndSaveCertificateRecord(payload: any, req?: any): Certificate {
   const certs = getDatabaseCertificates();
   const reserved = getReservedNumbers();
 
@@ -242,10 +513,19 @@ export function createAndSaveCertificateRecord(payload: any): Certificate {
 
   // Allocate unique random numbers
   let candidateCertNo = '';
-  if (payload.certificateNumber && typeof payload.certificateNumber === 'string' && payload.certificateNumber.trim() && !payload.certificateNumber.includes('Loading')) {
+  if (
+    payload.certificateNumber &&
+    typeof payload.certificateNumber === 'string' &&
+    payload.certificateNumber.trim() &&
+    !payload.certificateNumber.includes('Loading') &&
+    !payload.certificateNumber.includes('pending')
+  ) {
     const reqCert = payload.certificateNumber.trim().toUpperCase();
-    const alreadyExists = certs.some((c) => c.certificateNumber.toUpperCase() === reqCert);
-    if (!alreadyExists) {
+    const isTaken =
+      certs.some((c) => c.certificateNumber.toUpperCase() === reqCert || (c.aliases && c.aliases.map((a) => a.toUpperCase()).includes(reqCert))) ||
+      reserved.certificateNumbers.some((n) => n.toUpperCase() === reqCert);
+
+    if (!isTaken) {
       candidateCertNo = reqCert;
     }
   }
@@ -254,10 +534,19 @@ export function createAndSaveCertificateRecord(payload: any): Certificate {
   }
 
   let candidateScrapNo = '';
-  if (payload.scrappingRegistrationNumber && typeof payload.scrappingRegistrationNumber === 'string' && payload.scrappingRegistrationNumber.trim() && !payload.scrappingRegistrationNumber.includes('Loading')) {
+  if (
+    payload.scrappingRegistrationNumber &&
+    typeof payload.scrappingRegistrationNumber === 'string' &&
+    payload.scrappingRegistrationNumber.trim() &&
+    !payload.scrappingRegistrationNumber.includes('Loading') &&
+    !payload.scrappingRegistrationNumber.includes('pending')
+  ) {
     const reqScrap = payload.scrappingRegistrationNumber.trim().toUpperCase();
-    const alreadyExists = certs.some((c) => c.scrappingRegistrationNumber.toUpperCase() === reqScrap);
-    if (!alreadyExists) {
+    const isTaken =
+      certs.some((c) => c.scrappingRegistrationNumber.toUpperCase() === reqScrap) ||
+      reserved.scrappingNumbers.some((n) => n.toUpperCase() === reqScrap);
+
+    if (!isTaken) {
       candidateScrapNo = reqScrap;
     }
   }
@@ -265,10 +554,39 @@ export function createAndSaveCertificateRecord(payload: any): Certificate {
     candidateScrapNo = generateUniqueRandomScrapNumber(certs, reserved);
   }
 
+  // Ensure absolute uniqueness with loop
+  while (
+    certs.some((c) => c.certificateNumber.toUpperCase() === candidateCertNo.toUpperCase() || (c.aliases && c.aliases.map((a) => a.toUpperCase()).includes(candidateCertNo.toUpperCase()))) ||
+    reserved.certificateNumbers.some((n) => n.toUpperCase() === candidateCertNo.toUpperCase())
+  ) {
+    candidateCertNo = generateUniqueRandomCertNumber(certs, reserved);
+  }
+
+  while (
+    certs.some((c) => c.scrappingRegistrationNumber.toUpperCase() === candidateScrapNo.toUpperCase()) ||
+    reserved.scrappingNumbers.some((n) => n.toUpperCase() === candidateScrapNo.toUpperCase()) ||
+    candidateScrapNo.toUpperCase() === candidateCertNo.toUpperCase()
+  ) {
+    candidateScrapNo = generateUniqueRandomScrapNumber(certs, reserved);
+  }
+
+  // Atomically reserve both numbers
+  reserveNumber(candidateCertNo, candidateScrapNo);
+
   const qrToken = `tok_${crypto.randomBytes(8).toString('hex')}`;
   const verificationUrl = `/verify?certificateNumber=${encodeURIComponent(candidateCertNo)}&token=${qrToken}`;
   const now = new Date().toISOString();
   const internalId = `cert-${Date.now()}-${crypto.randomBytes(6).toString('hex')}`;
+
+  const settings = getSettings();
+  const companySnapshot: CompanySnapshot = {
+    companyName: settings.companyName,
+    companySubtitle: settings.companySubtitle,
+    address: settings.address,
+    phone: settings.phone,
+    website: settings.website,
+    signatoryTitle: settings.signatoryTitle,
+  };
 
   const newCertificate: Certificate = {
     id: internalId,
@@ -295,31 +613,31 @@ export function createAndSaveCertificateRecord(payload: any): Certificate {
     version: 1,
     issuedAt: now,
     lockedAt: now,
-    createdBy: payload.createdBy || 'Admin',
-    companySnapshot: {
-      companyName: 'PARIVAHAN SCRAPPERS',
-      companySubtitle: 'A Unit OF Scrapping Yard Ltd.',
-      address: 'B12, Dwarka, New Delhi.',
-      phone: '8506925495',
-      website: 'https://parivahan-scrappers.netlify.app/',
-      signatoryTitle: 'Authorised Signatory',
-    },
+    createdBy: payload.createdBy || 'Administrator',
+    companySnapshot,
     createdAt: now,
     updatedAt: now,
   };
 
   newCertificate.dataHash = computeCanonicalHash(newCertificate);
 
-  // Guarantee uniqueness before writing
-  while (certs.some((c) => c.certificateNumber.toUpperCase() === newCertificate.certificateNumber.toUpperCase())) {
-    newCertificate.certificateNumber = generateUniqueRandomCertNumber(certs, reserved);
-    newCertificate.verificationUrl = `/verify?certificateNumber=${encodeURIComponent(newCertificate.certificateNumber)}&token=${newCertificate.qrToken}`;
-    newCertificate.dataHash = computeCanonicalHash(newCertificate);
-  }
-
-  // Prepend new certificate to list
+  // Prepend new certificate to database
   const updated = [newCertificate, ...certs];
   saveDatabaseCertificates(updated);
+
+  // Record audit log
+  recordAuditLog(
+    {
+      certificateId: newCertificate.id,
+      certificateNumber: newCertificate.certificateNumber,
+      action: 'CERTIFICATE_CREATED',
+      actor: 'administrator',
+      newStatus: 'VALID',
+      dataHash: newCertificate.dataHash,
+      details: `Official certificate ${newCertificate.certificateNumber} created for ${newCertificate.ownerName} with verified unique random allocation.`,
+    },
+    req
+  );
 
   return newCertificate;
 }

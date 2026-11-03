@@ -70,13 +70,24 @@ export const CreateCertificateForm: React.FC<CreateCertificateFormProps> = ({
     return `${day}-${month}-${year}`;
   };
 
+  const generateClientPreviewNumbers = () => {
+    const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+    let code1 = '';
+    let code2 = '';
+    for (let i = 0; i < 6; i++) {
+      code1 += chars.charAt(Math.floor(Math.random() * chars.length));
+      code2 += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return {
+      nextCertificateNumber: `PS/26/R${code1}`,
+      nextScrappingRegistrationNumber: `REG-C${code2}`,
+    };
+  };
+
   const [nextNumbers, setNextNumbers] = useState<{
     nextCertificateNumber: string;
     nextScrappingRegistrationNumber: string;
-  }>({
-    nextCertificateNumber: 'Loading...',
-    nextScrappingRegistrationNumber: 'Loading...',
-  });
+  }>(() => generateClientPreviewNumbers());
 
   const [selectedBrandOption, setSelectedBrandOption] = useState<string>('Honda');
   const [customBrand, setCustomBrand] = useState<string>('');
@@ -175,15 +186,13 @@ export const CreateCertificateForm: React.FC<CreateCertificateFormProps> = ({
     }
     if (isMounted) {
       setIsFetchingNumbers(false);
-      // If server could not be reached, ensure clear indication rather than infinite Loading
-      setNextNumbers((prev) => ({
-        nextCertificateNumber: prev.nextCertificateNumber.includes('Loading')
-          ? 'Allocation pending (click Refresh)'
-          : prev.nextCertificateNumber,
-        nextScrappingRegistrationNumber: prev.nextScrappingRegistrationNumber.includes('Loading')
-          ? 'Allocation pending (click Refresh)'
-          : prev.nextScrappingRegistrationNumber,
-      }));
+      // If server could not be reached, ensure valid preview numbers rather than infinite Loading
+      setNextNumbers((prev) => {
+        if (prev.nextCertificateNumber.includes('Loading') || prev.nextCertificateNumber.includes('pending')) {
+          return generateClientPreviewNumbers();
+        }
+        return prev;
+      });
     }
   };
 
