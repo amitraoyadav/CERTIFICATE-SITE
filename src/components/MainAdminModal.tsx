@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ShieldAlert, Lock, KeyRound, Loader2, X, Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import { getApiUrl } from '../config/apiConfig';
 
 interface MainAdminModalProps {
   isOpen: boolean;
@@ -35,7 +36,7 @@ export const MainAdminModal: React.FC<MainAdminModalProps> = ({
         localStorage.getItem('pscrappers_admin_token') ||
         'ps_admin_session_token_secure_2026';
 
-      const res = await fetch('/api/auth/verify-main-admin', {
+      const res = await fetch(getApiUrl('/api/auth/verify-main-admin'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -80,7 +80,7 @@ function fetchFromLiveProduction(endpoint: string): Promise<any> {
 }
 
 // Server-side protected authorization secret (Never exposed to frontend code or client storage)
-const MAIN_ADMIN_PASSWORD = 'Scrapbyparivahan';
+const MAIN_ADMIN_PASSWORD = process.env.MAIN_ADMIN_PASSWORD || 'Scrapbyparivahan';
 const ADMIN_DELETION_PASSWORD = 'Admin00';
 const ADMIN_PROTECTED_PASSWORD = process.env.ADMIN_PROTECTED_PASSWORD || process.env.ADMIN_DELETE_PASSWORD || 'Scrap00';
 

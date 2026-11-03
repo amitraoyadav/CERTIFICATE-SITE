@@ -2154,5 +2154,27 @@
     "details": "Official certificate PS/26/R1000806 verified and authenticated with 100% SHA-256 integrity match.",
     "ip": "127.0.0.1",
     "userAgent": "curl/7.88.1"
+  },
+  {
+    "id": "audit-1793691159038-d5e5dac6",
+    "timestamp": "2026-11-03T07:32:39.039Z",
+    "certificateId": "AUTH",
+    "certificateNumber": "MAIN-ADMIN",
+    "action": "MAIN_ADMIN_AUTH_FAILED",
+    "actor": "user",
+    "details": "Failed Main Admin elevation attempt with incorrect password.",
+    "ip": "127.0.0.1",
+    "userAgent": "node"
+  },
+  {
+    "id": "audit-1793691159058-ae0949d1",
+    "timestamp": "2026-11-03T07:32:39.058Z",
+    "certificateId": "AUTH",
+    "certificateNumber": "MAIN-ADMIN",
+    "action": "MAIN_ADMIN_AUTH_SUCCESS",
+    "actor": "main-admin",
+    "details": "Main Admin privileges elevated successfully with valid master password.",
+    "ip": "127.0.0.1",
+    "userAgent": "node"
   }
 ]
