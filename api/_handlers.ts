@@ -52,6 +52,47 @@ function maskNumber(val: string | null | undefined, prefixLen = 4, prefixChar = 
  * to strictly stay within the Vercel Hobby plan limit (maximum 12 functions).
  */
 export async function handleApiRequest(req: any, res: any) {
+  // Ensure response helper methods are safely defined and chainable across all environments
+  if (typeof res.setHeader !== 'function') {
+    res.setHeader = () => {};
+  }
+  if (typeof res.status !== 'function') {
+    res.status = function (code: number) {
+      this.statusCode = code;
+      return this;
+    };
+  } else {
+    const origStatus = res.status;
+    res.status = function (code: number) {
+      origStatus.call(this, code);
+      this.statusCode = code;
+      return this;
+    };
+  }
+
+  if (typeof res.json !== 'function') {
+    res.json = function (data: any) {
+      if (!this.headersSent) {
+        this.setHeader('Content-Type', 'application/json; charset=utf-8');
+      }
+      this.end(JSON.stringify(data));
+      return this;
+    };
+  }
+
+  if (typeof res.send !== 'function') {
+    res.send = function (data: any) {
+      if (typeof data === 'object' && !Buffer.isBuffer(data)) {
+        return this.json(data);
+      }
+      if (!this.headersSent) {
+        this.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      }
+      this.end(data);
+      return this;
+    };
+  }
+
   // CORS & Security Headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
@@ -69,12 +110,37 @@ export async function handleApiRequest(req: any, res: any) {
     return res.status(200).end();
   }
 
-  // Parse raw body if string
+  // Parse raw body: handles parsed object, Buffer, JSON string, or unbuffered stream
   let body = req.body;
-  if (typeof body === 'string') {
+  if (Buffer.isBuffer(body)) {
+    try {
+      body = JSON.parse(body.toString('utf-8'));
+      req.body = body;
+    } catch {}
+  } else if (typeof body === 'string') {
     try {
       body = JSON.parse(body);
       req.body = body;
+    } catch {}
+  } else if (body === undefined && typeof req.on === 'function' && req.method !== 'GET' && req.method !== 'HEAD') {
+    try {
+      const rawText = await new Promise<string>((resolve) => {
+        let acc = '';
+        req.on('data', (c: any) => {
+          acc += c;
+        });
+        req.on('end', () => resolve(acc));
+        req.on('error', () => resolve(''));
+      });
+      if (rawText) {
+        try {
+          body = JSON.parse(rawText);
+          req.body = body;
+        } catch {
+          body = rawText;
+          req.body = body;
+        }
+      }
     } catch {}
   }
 
@@ -368,9 +434,15 @@ export async function handleApiRequest(req: any, res: any) {
   }
 
   // ----------------------------------------------------
-  // 11. Public Verification: /api/verify & /api/verify/*
+  // 11. Public Verification: /api/verify, /api/public/verify & subpaths
   // ----------------------------------------------------
-  if ((pathname === '/api/verify' || pathname.startsWith('/api/verify/')) && (method === 'GET' || method === 'POST')) {
+  if (
+    (pathname === '/api/verify' ||
+      pathname.startsWith('/api/verify/') ||
+      pathname === '/api/public/verify' ||
+      pathname.startsWith('/api/public/verify/')) &&
+    (method === 'GET' || method === 'POST')
+  ) {
     const certs = getDatabaseCertificates();
     let queryParam = String(
       query.certificateNumber ||
@@ -693,15 +765,17 @@ export async function handleApiRequest(req: any, res: any) {
         return res.status(400).json({ message: 'Owner name is mandatory to issue a certificate.' });
       } catch (err: any) {
         console.error('[POST /api/certificates] Error:', err);
-        if (err.isDuplicateVehicle) {
+        const errMsg = err?.message || 'Failed to issue certificate on server database';
+        if (err?.isDuplicateVehicle) {
           return res.status(409).json({
             isDuplicateVehicle: true,
-            message: err.message,
+            message: errMsg,
             existingCertificate: err.existingCertificate,
           });
         }
         return res.status(500).json({
-          message: err.message || 'Failed to issue certificate on server database',
+          message: errMsg,
+          error: String(err?.message || err),
         });
       } finally {
         releaseLock();

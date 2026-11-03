@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import crypto from 'crypto';
 import type {
   Certificate,
@@ -12,6 +13,8 @@ import type {
 } from '../src/types';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
+const TMP_DATA_DIR = path.join(os.tmpdir(), 'parivahan-data');
+
 const CERTIFICATES_FILE = path.join(DATA_DIR, 'certificates.json');
 const BACKUP_CERTIFICATES_FILE = path.join(DATA_DIR, 'certificates_backup.json');
 const MASTER_REGISTRY_FILE = path.join(DATA_DIR, 'MASTER_AUTHORITATIVE_REGISTRY.json');
@@ -24,10 +27,21 @@ const AUDIT_BACKUP_FILE = path.join(DATA_DIR, 'audit_logs_backup.json');
 const DRIVE_SYNC_LOGS_FILE = path.join(DATA_DIR, 'drive_sync_logs.json');
 const DATABASE_BACKUPS_DIR = path.join(DATA_DIR, 'database_backups');
 
-// Ensure required directories exist
+// Temporary serverless scratch files (/tmp is writable in Vercel Lambdas)
+const TMP_CERTIFICATES_FILE = path.join(TMP_DATA_DIR, 'certificates.json');
+const TMP_RESERVED_FILE = path.join(TMP_DATA_DIR, 'reserved_numbers.json');
+const TMP_SETTINGS_FILE = path.join(TMP_DATA_DIR, 'settings.json');
+const TMP_AUDIT_FILE = path.join(TMP_DATA_DIR, 'audit_logs.json');
+
+// Ensure required directories exist safely in both primary and /tmp
 try {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+} catch {}
+try {
   if (!fs.existsSync(DATABASE_BACKUPS_DIR)) fs.mkdirSync(DATABASE_BACKUPS_DIR, { recursive: true });
+} catch {}
+try {
+  if (!fs.existsSync(TMP_DATA_DIR)) fs.mkdirSync(TMP_DATA_DIR, { recursive: true });
 } catch {}
 
 // Default System Settings
@@ -126,15 +140,29 @@ export function getDatabaseCertificates(): Certificate[] {
     return inMemoryCertificates;
   }
 
-  // 1. Try reading primary CERTIFICATES_FILE
+  const allFoundCerts: Certificate[] = [];
+
+  // 1. Try reading /tmp scratch CERTIFICATES_FILE (holds recent serverless writes)
+  try {
+    if (fs.existsSync(TMP_CERTIFICATES_FILE)) {
+      const raw = fs.readFileSync(TMP_CERTIFICATES_FILE, 'utf-8');
+      if (raw && raw.trim()) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          allFoundCerts.push(...parsed);
+        }
+      }
+    }
+  } catch {}
+
+  // 2. Try reading primary CERTIFICATES_FILE
   try {
     if (fs.existsSync(CERTIFICATES_FILE)) {
       const raw = fs.readFileSync(CERTIFICATES_FILE, 'utf-8');
       if (raw && raw.trim()) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          inMemoryCertificates = deduplicateCertificates(parsed);
-          return inMemoryCertificates;
+          allFoundCerts.push(...parsed);
         }
       }
     }
@@ -142,43 +170,40 @@ export function getDatabaseCertificates(): Certificate[] {
     console.warn('[DB] Primary certificates read notice:', err);
   }
 
-  // 2. Try MASTER_REGISTRY_FILE
+  // 3. Try MASTER_REGISTRY_FILE
   try {
     if (fs.existsSync(MASTER_REGISTRY_FILE)) {
       const raw = fs.readFileSync(MASTER_REGISTRY_FILE, 'utf-8');
       if (raw && raw.trim()) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          inMemoryCertificates = deduplicateCertificates(parsed);
-          return inMemoryCertificates;
+          allFoundCerts.push(...parsed);
         }
       }
     }
   } catch {}
 
-  // 3. Try ALL_920_FILE
+  // 4. Try ALL_920_FILE
   try {
     if (fs.existsSync(ALL_920_FILE)) {
       const raw = fs.readFileSync(ALL_920_FILE, 'utf-8');
       if (raw && raw.trim()) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          inMemoryCertificates = deduplicateCertificates(parsed);
-          return inMemoryCertificates;
+          allFoundCerts.push(...parsed);
         }
       }
     }
   } catch {}
 
-  // 4. Try bundled baseline in code repository
+  // 5. Try bundled baseline in code repository
   try {
     if (fs.existsSync(EMBEDDED_BASELINE_FILE)) {
       const raw = fs.readFileSync(EMBEDDED_BASELINE_FILE, 'utf-8');
       if (raw && raw.trim()) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          inMemoryCertificates = deduplicateCertificates(parsed);
-          return inMemoryCertificates;
+          allFoundCerts.push(...parsed);
         }
       }
     }
@@ -186,20 +211,35 @@ export function getDatabaseCertificates(): Certificate[] {
     console.warn('[DB] Authoritative baseline read notice:', baselineErr);
   }
 
+  if (allFoundCerts.length > 0) {
+    inMemoryCertificates = deduplicateCertificates(allFoundCerts);
+    return inMemoryCertificates;
+  }
+
   inMemoryCertificates = [];
   return inMemoryCertificates;
 }
 
 /**
- * Persist certificates safely and update in-memory cache
+ * Persist certificates safely to in-memory cache, /tmp scratch storage, and filesystem
  */
 export function saveDatabaseCertificates(certs: Certificate[]): void {
   const deduped = deduplicateCertificates(certs);
   inMemoryCertificates = deduped;
 
+  const jsonStr = JSON.stringify(deduped, null, 2);
+
+  // 1. Always write to /tmp scratch storage (guaranteed writable on Vercel)
+  try {
+    if (!fs.existsSync(TMP_DATA_DIR)) fs.mkdirSync(TMP_DATA_DIR, { recursive: true });
+    fs.writeFileSync(TMP_CERTIFICATES_FILE, jsonStr, 'utf-8');
+  } catch (tmpErr) {
+    console.warn('[DB] /tmp scratch write notice:', tmpErr);
+  }
+
+  // 2. Attempt writing to persistent files if filesystem is writable
   try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    const jsonStr = JSON.stringify(deduped, null, 2);
     fs.writeFileSync(CERTIFICATES_FILE, jsonStr, 'utf-8');
 
     try {
@@ -210,7 +250,7 @@ export function saveDatabaseCertificates(certs: Certificate[]): void {
       fs.writeFileSync(MASTER_REGISTRY_FILE, jsonStr, 'utf-8');
     } catch {}
   } catch (err) {
-    console.warn('[DB] Persistent filesystem write notice (in-memory updated):', err);
+    console.warn('[DB] Persistent filesystem write notice (in-memory & /tmp scratch updated):', err);
   }
 }
 
@@ -221,6 +261,23 @@ export function getReservedNumbers(): { certificateNumbers: string[]; scrappingN
   if (inMemoryReservedNumbers) {
     return inMemoryReservedNumbers;
   }
+
+  // Check /tmp scratch first
+  try {
+    if (fs.existsSync(TMP_RESERVED_FILE)) {
+      const raw = fs.readFileSync(TMP_RESERVED_FILE, 'utf-8');
+      if (raw && raw.trim()) {
+        const parsed = JSON.parse(raw);
+        inMemoryReservedNumbers = {
+          certificateNumbers: Array.isArray(parsed.certificateNumbers) ? parsed.certificateNumbers : [],
+          scrappingNumbers: Array.isArray(parsed.scrappingNumbers) ? parsed.scrappingNumbers : [],
+        };
+        return inMemoryReservedNumbers;
+      }
+    }
+  } catch {}
+
+  // Check primary
   try {
     if (fs.existsSync(RESERVED_NUMBERS_FILE)) {
       const raw = fs.readFileSync(RESERVED_NUMBERS_FILE, 'utf-8');
@@ -264,9 +321,18 @@ export function reserveNumber(certNo?: string, scrapNo?: string): void {
 
   if (modified) {
     inMemoryReservedNumbers = current;
+    const jsonStr = JSON.stringify(current, null, 2);
+
+    // Write to /tmp scratch
+    try {
+      if (!fs.existsSync(TMP_DATA_DIR)) fs.mkdirSync(TMP_DATA_DIR, { recursive: true });
+      fs.writeFileSync(TMP_RESERVED_FILE, jsonStr, 'utf-8');
+    } catch {}
+
+    // Write to primary
     try {
       if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-      fs.writeFileSync(RESERVED_NUMBERS_FILE, JSON.stringify(current, null, 2), 'utf-8');
+      fs.writeFileSync(RESERVED_NUMBERS_FILE, jsonStr, 'utf-8');
     } catch (e) {
       console.warn('[DB] Reserved numbers write notice:', e);
     }
@@ -278,6 +344,17 @@ export function reserveNumber(certNo?: string, scrapNo?: string): void {
  */
 export function getSettings(): SystemSettings {
   if (inMemorySettings) return inMemorySettings;
+
+  try {
+    if (fs.existsSync(TMP_SETTINGS_FILE)) {
+      const raw = fs.readFileSync(TMP_SETTINGS_FILE, 'utf-8');
+      if (raw && raw.trim()) {
+        inMemorySettings = { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+        return inMemorySettings;
+      }
+    }
+  } catch {}
+
   try {
     if (fs.existsSync(SETTINGS_FILE)) {
       const raw = fs.readFileSync(SETTINGS_FILE, 'utf-8');
@@ -287,15 +364,23 @@ export function getSettings(): SystemSettings {
       }
     }
   } catch {}
+
   inMemorySettings = DEFAULT_SETTINGS;
   return inMemorySettings;
 }
 
 export function saveSettings(settings: SystemSettings): void {
   inMemorySettings = settings;
+  const jsonStr = JSON.stringify(settings, null, 2);
+
+  try {
+    if (!fs.existsSync(TMP_DATA_DIR)) fs.mkdirSync(TMP_DATA_DIR, { recursive: true });
+    fs.writeFileSync(TMP_SETTINGS_FILE, jsonStr, 'utf-8');
+  } catch {}
+
   try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf-8');
+    fs.writeFileSync(SETTINGS_FILE, jsonStr, 'utf-8');
   } catch (err) {
     console.warn('[DB] Settings write notice:', err);
   }
@@ -306,6 +391,20 @@ export function saveSettings(settings: SystemSettings): void {
  */
 export function getAuditLogs(): AuditLogEntry[] {
   if (inMemoryAuditLogs) return inMemoryAuditLogs;
+
+  try {
+    if (fs.existsSync(TMP_AUDIT_FILE)) {
+      const raw = fs.readFileSync(TMP_AUDIT_FILE, 'utf-8');
+      if (raw && raw.trim()) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          inMemoryAuditLogs = parsed;
+          return inMemoryAuditLogs;
+        }
+      }
+    }
+  } catch {}
+
   try {
     if (fs.existsSync(AUDIT_LOG_FILE)) {
       const raw = fs.readFileSync(AUDIT_LOG_FILE, 'utf-8');
@@ -318,6 +417,7 @@ export function getAuditLogs(): AuditLogEntry[] {
       }
     }
   } catch {}
+
   inMemoryAuditLogs = [];
   return inMemoryAuditLogs;
 }
@@ -338,9 +438,15 @@ export function recordAuditLog(
   if (logs.length > 500) logs.length = 500;
   inMemoryAuditLogs = logs;
 
+  const jsonStr = JSON.stringify(logs, null, 2);
+
+  try {
+    if (!fs.existsSync(TMP_DATA_DIR)) fs.mkdirSync(TMP_DATA_DIR, { recursive: true });
+    fs.writeFileSync(TMP_AUDIT_FILE, jsonStr, 'utf-8');
+  } catch {}
+
   try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    const jsonStr = JSON.stringify(logs, null, 2);
     fs.writeFileSync(AUDIT_LOG_FILE, jsonStr, 'utf-8');
     try {
       fs.writeFileSync(AUDIT_BACKUP_FILE, jsonStr, 'utf-8');

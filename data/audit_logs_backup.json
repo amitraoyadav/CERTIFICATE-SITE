@@ -1,5 +1,31 @@
 [
   {
+    "id": "audit-1793723466485-79c4b334",
+    "timestamp": "2026-11-03T16:31:06.485Z",
+    "certificateId": "cert-1793723466455-4800e5da3c5d",
+    "certificateNumber": "PS/26/RJG55TS",
+    "action": "CERTIFICATE_CREATED",
+    "actor": "administrator",
+    "newStatus": "VALID",
+    "dataHash": "65d646e5136ca56b48cadce5ccb9c63fa01ff9f52f1c13e05ccfe42f78289083",
+    "details": "Official certificate PS/26/RJG55TS created for VERCEL VERIFICATION CITIZEN with verified unique random allocation.",
+    "ip": "127.0.0.1",
+    "userAgent": "Unknown"
+  },
+  {
+    "id": "audit-1793722552612-e7144b93",
+    "timestamp": "2026-11-03T16:15:52.612Z",
+    "certificateId": "cert-1793722552583-2057a5a23197",
+    "certificateNumber": "PS/26/RHJQV2Z",
+    "action": "CERTIFICATE_CREATED",
+    "actor": "administrator",
+    "newStatus": "VALID",
+    "dataHash": "455fedb3e4c190d6dd6341e436a2ab0f7b1fd02605bd53d157469e3664c7a4c9",
+    "details": "Official certificate PS/26/RHJQV2Z created for VERCEL TEST OWNER with verified unique random allocation.",
+    "ip": "127.0.0.1",
+    "userAgent": "Unknown"
+  },
+  {
     "id": "audit-1793721491310-57390195",
     "timestamp": "2026-11-03T15:58:11.310Z",
     "certificateId": "cert-1793721491285-9c098e6d3a86",

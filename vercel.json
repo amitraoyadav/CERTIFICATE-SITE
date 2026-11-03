@@ -4,12 +4,12 @@
   "outputDirectory": "dist",
   "functions": {
     "api/**/*.ts": {
-      "includeFiles": "data/**"
+      "includeFiles": "{data/**,src/data/**}"
     }
   },
   "rewrites": [
     {
-      "source": "/((?!api/.*).*)",
+      "source": "/((?!api($|/)).*)",
       "destination": "/index.html"
     }
   ]

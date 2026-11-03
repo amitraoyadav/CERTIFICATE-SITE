@@ -399,12 +399,24 @@ export const CreateCertificateForm: React.FC<CreateCertificateFormProps> = ({
         if (res && res.status === 429) {
           throw new Error('Server rate limit reached. Please wait a moment before trying again.');
         }
-        const errorData = await res?.json().catch(() => ({}));
+        let errorData: any = null;
+        try {
+          errorData = await res?.json();
+        } catch {
+          const rawText = await res?.text().catch(() => '');
+          if (rawText) {
+            errorData = { message: `Server returned HTTP ${res?.status || 500}: ${rawText.slice(0, 150)}` };
+          }
+        }
         if (errorData?.isDuplicateVehicle) {
           setDuplicateCert(errorData.existingCertificate);
-          throw new Error(errorData.message || 'Duplicate vehicle record detected.');
+          throw new Error(errorData.message || 'Duplicate vehicle record detected in registry.');
         }
-        throw new Error(errorData?.message || 'Failed to issue certificate on server database');
+        throw new Error(
+          errorData?.message ||
+            errorData?.error ||
+            `Failed to issue certificate on server database (HTTP ${res?.status || 500})`
+        );
       }
 
       const createdCertificate: Certificate = await res.json();
