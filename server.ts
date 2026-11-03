@@ -150,7 +150,7 @@ const ADMIN_DELETE_PASSWORD = ADMIN_DELETION_PASSWORD;
 
 // Idempotency cache to prevent duplicate certificate creation on double-click or network retry
 const idempotencyStore = new Map<string, { cert: Certificate; timestamp: number }>();
-setInterval(() => {
+const idempotencyTimer = setInterval(() => {
   const now = Date.now();
   for (const [key, val] of idempotencyStore.entries()) {
     if (now - val.timestamp > 15 * 60 * 1000) {
@@ -158,6 +158,7 @@ setInterval(() => {
     }
   }
 }, 60 * 1000);
+if (idempotencyTimer.unref) idempotencyTimer.unref();
 
 // Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
@@ -874,7 +875,7 @@ function saveCertificates(certificates: Certificate[], skipBackupSnapshot = fals
 getSettings();
 getCertificates();
 
-async function startServer() {
+export function configureExpressApp(): express.Application {
   const app = express();
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -885,7 +886,11 @@ async function startServer() {
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     res.header(
       'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-admin-token'
+      'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-admin-token, x-main-admin-token'
+    );
+    res.header(
+      'Access-Control-Expose-Headers',
+      'Content-Disposition, Content-Type, x-admin-token, x-main-admin-token'
     );
     if (req.method === 'OPTIONS') {
       return res.sendStatus(200);
@@ -5275,7 +5280,12 @@ Return strictly raw JSON.`;
     res.json({ success: true, message: 'Settings saved successfully. Note: Admin credentials are fixed.' });
   });
 
-  // Vite middleware in dev, static files in prod
+  return app;
+}
+
+export const app: express.Application = configureExpressApp();
+
+export async function startServer() {
   const isProd =
     process.env.NODE_ENV === 'production' &&
     !process.argv[1]?.endsWith('server.ts') &&
@@ -5289,15 +5299,29 @@ Return strictly raw JSON.`;
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+    if (fs.existsSync(distPath)) {
+      app.use(express.static(distPath));
+      app.get('*', (req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
+    }
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Vehicle Scrapping Management Server running on port ${PORT}`);
-  });
+  if (!process.env.VERCEL) {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Vehicle Scrapping Management Server running on port ${PORT}`);
+    });
+  }
 }
 
-startServer();
+const isMainScript =
+  typeof process !== 'undefined' &&
+  Boolean(
+    process.argv[1]?.endsWith('server.ts') ||
+    process.argv[1]?.endsWith('server.cjs') ||
+    process.argv[1]?.endsWith('server.js')
+  );
+
+if (isMainScript && !process.env.VERCEL && process.env.NODE_ENV !== 'test') {
+  startServer();
+}

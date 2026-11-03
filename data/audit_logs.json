@@ -2176,5 +2176,83 @@
     "details": "Main Admin privileges elevated successfully with valid master password.",
     "ip": "127.0.0.1",
     "userAgent": "node"
+  },
+  {
+    "id": "audit-1793691945328-5c0ebd5f",
+    "timestamp": "2026-11-03T07:45:45.328Z",
+    "certificateId": "AUTH",
+    "certificateNumber": "MAIN-ADMIN",
+    "action": "MAIN_ADMIN_AUTH_SUCCESS",
+    "actor": "main-admin",
+    "details": "Main Admin privileges elevated successfully with valid master password.",
+    "ip": "127.0.0.1",
+    "userAgent": "Unknown"
+  },
+  {
+    "id": "audit-1793691992180-b808bf0c",
+    "timestamp": "2026-11-03T07:46:32.181Z",
+    "certificateId": "AUTH",
+    "certificateNumber": "MAIN-ADMIN",
+    "action": "MAIN_ADMIN_AUTH_FAILED",
+    "actor": "user",
+    "details": "Failed Main Admin elevation attempt with incorrect password.",
+    "ip": "127.0.0.1",
+    "userAgent": "Unknown"
+  },
+  {
+    "id": "audit-1793691992183-cb6246d3",
+    "timestamp": "2026-11-03T07:46:32.183Z",
+    "certificateId": "AUTH",
+    "certificateNumber": "MAIN-ADMIN",
+    "action": "MAIN_ADMIN_AUTH_SUCCESS",
+    "actor": "main-admin",
+    "details": "Main Admin privileges elevated successfully with valid master password.",
+    "ip": "127.0.0.1",
+    "userAgent": "Unknown"
+  },
+  {
+    "id": "audit-1793692117262-46caae14",
+    "timestamp": "2026-11-03T07:48:37.263Z",
+    "certificateId": "AUTH",
+    "certificateNumber": "MAIN-ADMIN",
+    "action": "MAIN_ADMIN_AUTH_SUCCESS",
+    "actor": "main-admin",
+    "details": "Main Admin privileges elevated successfully with valid master password.",
+    "ip": "127.0.0.1",
+    "userAgent": "curl/7.88.1"
+  },
+  {
+    "id": "audit-1793692135882-f20e2a90",
+    "timestamp": "2026-11-03T07:48:55.883Z",
+    "certificateId": "AUTH",
+    "certificateNumber": "MAIN-ADMIN",
+    "action": "MAIN_ADMIN_AUTH_FAILED",
+    "actor": "user",
+    "details": "Failed Main Admin elevation attempt with incorrect password.",
+    "ip": "127.0.0.1",
+    "userAgent": "Unknown"
+  },
+  {
+    "id": "audit-1793692135887-1178ffba",
+    "timestamp": "2026-11-03T07:48:55.887Z",
+    "certificateId": "AUTH",
+    "certificateNumber": "MAIN-ADMIN",
+    "action": "MAIN_ADMIN_AUTH_SUCCESS",
+    "actor": "main-admin",
+    "details": "Main Admin privileges elevated successfully with valid master password.",
+    "ip": "127.0.0.1",
+    "userAgent": "Unknown"
+  },
+  {
+    "id": "audit-1793692136066-26b495f3",
+    "timestamp": "2026-11-03T07:48:56.066Z",
+    "certificateId": "cert-1793616579739-a6b9db8a2391",
+    "certificateNumber": "PS/26/R1000806",
+    "action": "CERTIFICATE_VERIFIED",
+    "actor": "public-verifier",
+    "dataHash": "31aed0c8e7009334f16eecc070cfdf44207a6fa5188f92296568e2abe9e6c5bc",
+    "details": "Official certificate PS/26/R1000806 verified and authenticated with 100% SHA-256 integrity match.",
+    "ip": "127.0.0.1",
+    "userAgent": "Unknown"
   }
 ]
