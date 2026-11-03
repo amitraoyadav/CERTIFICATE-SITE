@@ -28,9 +28,9 @@ export default async function handler(req: any, res: any) {
   } catch (err: any) {
     console.error('[STATS] Handler error:', err);
     return res.status(200).json({
-      totalCertificates: 937,
-      activeCertificates: 936,
-      cancelledCertificates: 0,
+      totalCertificates: 938,
+      activeCertificates: 935,
+      cancelledCertificates: 2,
       supersededCertificates: 1,
     });
   }

@@ -26,9 +26,14 @@ export default async function handler(req: any, res: any) {
   }
 
   const url = req.url || '';
+  const isNextNumbers =
+    url.includes('next-numbers') ||
+    url.includes('next-number') ||
+    req.query?.action === 'next-numbers' ||
+    req.query?.next === 'true';
 
   // Intercept sub-routes if routed through /api/certificates
-  if (url.includes('next-numbers') || url.includes('next-number')) {
+  if (isNextNumbers) {
     const certs = getDatabaseCertificates();
     const reserved = getReservedNumbers();
     const candidateCertNo = generateUniqueRandomCertNumber(certs, reserved);

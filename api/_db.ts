@@ -10,7 +10,7 @@ const RESERVED_NUMBERS_FILE = path.join(DATA_DIR, 'reserved_numbers.json');
 let inMemoryCertificates: Certificate[] | null = null;
 
 export function getDatabaseCertificates(): Certificate[] {
-  if (inMemoryCertificates && inMemoryCertificates.length >= 934) {
+  if (inMemoryCertificates && inMemoryCertificates.length >= 938) {
     return inMemoryCertificates;
   }
 
@@ -20,7 +20,7 @@ export function getDatabaseCertificates(): Certificate[] {
       const raw = fs.readFileSync(CERTIFICATES_FILE, 'utf-8');
       if (raw && raw.trim()) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length >= 934) {
+        if (Array.isArray(parsed) && parsed.length >= 938) {
           inMemoryCertificates = parsed;
           return parsed;
         }

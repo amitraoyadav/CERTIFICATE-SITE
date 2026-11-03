@@ -16,9 +16,11 @@ import {
   Lock,
   FileCheck2,
   Cloud,
+  RefreshCw,
 } from 'lucide-react';
 import type { Certificate } from '../types';
 import { maskChassisNumber, maskEngineNumber } from '../utils/maskUtils';
+import { getApiUrl } from '../config/apiConfig';
 
 interface CreateCertificateFormProps {
   onCertificateCreated: (cert: Certificate) => void;
@@ -144,29 +146,50 @@ export const CreateCertificateForm: React.FC<CreateCertificateFormProps> = ({
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Fetch next numbers from backend on mount
+  const [isFetchingNumbers, setIsFetchingNumbers] = useState(false);
+
+  // Fetch next numbers from backend on mount with multi-endpoint fallback
+  const fetchNext = async (isMounted = true) => {
+    setIsFetchingNumbers(true);
+    try {
+      let res = await fetch(getApiUrl('/api/certificates/next-numbers'));
+      if (!res.ok) {
+        res = await fetch(getApiUrl('/api/certificates/next-number'));
+      }
+      if (!res.ok) {
+        res = await fetch(getApiUrl('/api/certificates?action=next-numbers'));
+      }
+      if (res.ok) {
+        const data = await res.json();
+        if (isMounted && data && (data.nextCertificateNumber || data.certificateNumber)) {
+          setNextNumbers({
+            nextCertificateNumber: data.nextCertificateNumber || data.certificateNumber,
+            nextScrappingRegistrationNumber: data.nextScrappingRegistrationNumber || data.scrappingRegistrationNumber,
+          });
+          setIsFetchingNumbers(false);
+          return;
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching next numbers:', err);
+    }
+    if (isMounted) {
+      setIsFetchingNumbers(false);
+      // If server could not be reached, ensure clear indication rather than infinite Loading
+      setNextNumbers((prev) => ({
+        nextCertificateNumber: prev.nextCertificateNumber.includes('Loading')
+          ? 'Allocation pending (click Refresh)'
+          : prev.nextCertificateNumber,
+        nextScrappingRegistrationNumber: prev.nextScrappingRegistrationNumber.includes('Loading')
+          ? 'Allocation pending (click Refresh)'
+          : prev.nextScrappingRegistrationNumber,
+      }));
+    }
+  };
+
   useEffect(() => {
     let isMounted = true;
-    const fetchNext = async () => {
-      try {
-        let res = await fetch('/api/certificates/next-numbers');
-        if (!res.ok) {
-          res = await fetch('/api/certificates/next-number');
-        }
-        if (res.ok) {
-          const data = await res.json();
-          if (isMounted && data) {
-            setNextNumbers({
-              nextCertificateNumber: data.nextCertificateNumber || data.certificateNumber || 'PS/26/R...',
-              nextScrappingRegistrationNumber: data.nextScrappingRegistrationNumber || data.scrappingRegistrationNumber || 'REG-C...',
-            });
-          }
-        }
-      } catch (err) {
-        console.error('Error fetching next numbers:', err);
-      }
-    };
-    fetchNext();
+    fetchNext(isMounted);
     return () => {
       isMounted = false;
     };
@@ -193,7 +216,7 @@ export const CreateCertificateForm: React.FC<CreateCertificateFormProps> = ({
       if (isCNoValid) params.append('chassisNumber', cNo);
       if (isENoValid) params.append('engineNumber', eNo);
 
-      fetch(`/api/certificates/check-vehicle?${params.toString()}`)
+      fetch(getApiUrl(`/api/certificates/check-vehicle?${params.toString()}`))
         .then((res) => res.json())
         .then((data) => {
           if (data && data.exists) {
@@ -320,11 +343,15 @@ export const CreateCertificateForm: React.FC<CreateCertificateFormProps> = ({
       location: 'Delhi NCR', // Enforce location is strictly Delhi NCR
       forceDuplicate: allowDuplicateOverride || Boolean(duplicateCert),
       certificateNumber:
-        nextNumbers.nextCertificateNumber && !nextNumbers.nextCertificateNumber.includes('Loading')
+        nextNumbers.nextCertificateNumber &&
+        !nextNumbers.nextCertificateNumber.includes('Loading') &&
+        !nextNumbers.nextCertificateNumber.includes('pending')
           ? nextNumbers.nextCertificateNumber
           : undefined,
       scrappingRegistrationNumber:
-        nextNumbers.nextScrappingRegistrationNumber && !nextNumbers.nextScrappingRegistrationNumber.includes('Loading')
+        nextNumbers.nextScrappingRegistrationNumber &&
+        !nextNumbers.nextScrappingRegistrationNumber.includes('Loading') &&
+        !nextNumbers.nextScrappingRegistrationNumber.includes('pending')
           ? nextNumbers.nextScrappingRegistrationNumber
           : undefined,
     };
@@ -340,7 +367,7 @@ export const CreateCertificateForm: React.FC<CreateCertificateFormProps> = ({
       const maxRetries = 2;
 
       while (retries <= maxRetries) {
-        res = await fetch('/api/certificates', {
+        res = await fetch(getApiUrl('/api/certificates'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -494,6 +521,17 @@ export const CreateCertificateForm: React.FC<CreateCertificateFormProps> = ({
               {nextNumbers.nextScrappingRegistrationNumber}
             </span>
           </div>
+
+          <button
+            type="button"
+            onClick={() => fetchNext(true)}
+            disabled={isFetchingNumbers}
+            className="flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded cursor-pointer disabled:opacity-50 transition-colors"
+            title="Refresh auto-allocated numbers from database"
+          >
+            <RefreshCw className={`w-3 h-3 ${isFetchingNumbers ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </button>
         </div>
 
         <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
