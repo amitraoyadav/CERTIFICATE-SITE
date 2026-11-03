@@ -9,6 +9,18 @@
   },
   "rewrites": [
     {
+      "source": "/api/certificates/next-numbers",
+      "destination": "/api/certificates/next-numbers"
+    },
+    {
+      "source": "/api/certificates/next-number",
+      "destination": "/api/certificates/next-numbers"
+    },
+    {
+      "source": "/api/certificates/check-vehicle",
+      "destination": "/api/certificates/check-vehicle"
+    },
+    {
       "source": "/((?!api/.*).*)",
       "destination": "/index.html"
     }

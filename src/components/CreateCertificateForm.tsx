@@ -146,12 +146,30 @@ export const CreateCertificateForm: React.FC<CreateCertificateFormProps> = ({
 
   // Fetch next numbers from backend on mount
   useEffect(() => {
-    fetch('/api/certificates/next-numbers')
-      .then((res) => res.json())
-      .then((data) => {
-        setNextNumbers(data);
-      })
-      .catch((err) => console.error('Error fetching next numbers:', err));
+    let isMounted = true;
+    const fetchNext = async () => {
+      try {
+        let res = await fetch('/api/certificates/next-numbers');
+        if (!res.ok) {
+          res = await fetch('/api/certificates/next-number');
+        }
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && data) {
+            setNextNumbers({
+              nextCertificateNumber: data.nextCertificateNumber || data.certificateNumber || 'PS/26/R...',
+              nextScrappingRegistrationNumber: data.nextScrappingRegistrationNumber || data.scrappingRegistrationNumber || 'REG-C...',
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching next numbers:', err);
+      }
+    };
+    fetchNext();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Duplicate vehicle checking: check Vehicle No, Chassis No, Engine No with debounce
@@ -301,6 +319,14 @@ export const CreateCertificateForm: React.FC<CreateCertificateFormProps> = ({
       dateOfIssue: (formData.dateOfIssue || getTodayFormatted()).trim(),
       location: 'Delhi NCR', // Enforce location is strictly Delhi NCR
       forceDuplicate: allowDuplicateOverride || Boolean(duplicateCert),
+      certificateNumber:
+        nextNumbers.nextCertificateNumber && !nextNumbers.nextCertificateNumber.includes('Loading')
+          ? nextNumbers.nextCertificateNumber
+          : undefined,
+      scrappingRegistrationNumber:
+        nextNumbers.nextScrappingRegistrationNumber && !nextNumbers.nextScrappingRegistrationNumber.includes('Loading')
+          ? nextNumbers.nextScrappingRegistrationNumber
+          : undefined,
     };
 
     try {

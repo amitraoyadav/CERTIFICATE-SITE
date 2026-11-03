@@ -1,4 +1,11 @@
-import { getDatabaseCertificates, saveDatabaseCertificates } from './_db.ts';
+import {
+  getDatabaseCertificates,
+  saveDatabaseCertificates,
+  getReservedNumbers,
+  generateUniqueRandomCertNumber,
+  generateUniqueRandomScrapNumber,
+  createAndSaveCertificateRecord,
+} from './_db.ts';
 import type { Certificate } from '../src/types.ts';
 
 export default async function handler(req: any, res: any) {
@@ -12,9 +19,26 @@ export default async function handler(req: any, res: any) {
     'Access-Control-Expose-Headers',
     'Content-Disposition, Content-Type, x-admin-token, x-main-admin-token'
   );
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
+  }
+
+  const url = req.url || '';
+
+  // Intercept sub-routes if routed through /api/certificates
+  if (url.includes('next-numbers') || url.includes('next-number')) {
+    const certs = getDatabaseCertificates();
+    const reserved = getReservedNumbers();
+    const candidateCertNo = generateUniqueRandomCertNumber(certs, reserved);
+    const candidateScrapNo = generateUniqueRandomScrapNumber(certs, reserved);
+    return res.status(200).json({
+      nextCertificateNumber: candidateCertNo,
+      nextScrappingRegistrationNumber: candidateScrapNo,
+      certificateNumber: candidateCertNo,
+      scrappingRegistrationNumber: candidateScrapNo,
+    });
   }
 
   const certs = getDatabaseCertificates();
@@ -56,24 +80,48 @@ export default async function handler(req: any, res: any) {
       } catch {}
     }
 
-    const newCert = body as Certificate;
-    if (!newCert || !newCert.certificateNumber) {
-      return res.status(400).json({ message: 'Invalid certificate data provided.' });
+    if (!body || typeof body !== 'object') {
+      return res.status(400).json({ message: 'Invalid certificate payload provided.' });
     }
 
-    // Ensure uniqueness
-    const exists = certs.some(
-      (c) => c.certificateNumber.toUpperCase() === newCert.certificateNumber.toUpperCase()
-    );
-    if (exists) {
-      return res.status(409).json({
-        message: `Certificate number ${newCert.certificateNumber} already exists in registry.`,
+    try {
+      // Case 1: Pre-constructed complete Certificate object (e.g., sync, bulk-import, or re-save)
+      if (body.id && body.certificateNumber && body.qrToken) {
+        const newCert = body as Certificate;
+        const exists = certs.some(
+          (c) => c.certificateNumber.toUpperCase() === newCert.certificateNumber.toUpperCase()
+        );
+        if (exists) {
+          return res.status(409).json({
+            message: `Certificate number ${newCert.certificateNumber} already exists in registry.`,
+          });
+        }
+        const updated = [newCert, ...certs];
+        saveDatabaseCertificates(updated);
+        return res.status(201).json(newCert);
+      }
+
+      // Case 2: Creation payload from Make Certificate form
+      // { ownerName, vehicleRegistrationNumber, chassisNumber, engineNumber, make, model, ... }
+      if (body.ownerName) {
+        const created = createAndSaveCertificateRecord(body);
+        return res.status(201).json(created);
+      }
+
+      return res.status(400).json({ message: 'Owner name is mandatory to issue a certificate.' });
+    } catch (err: any) {
+      console.error('[POST /api/certificates] Error saving certificate:', err);
+      if (err.isDuplicateVehicle) {
+        return res.status(409).json({
+          isDuplicateVehicle: true,
+          message: err.message,
+          existingCertificate: err.existingCertificate,
+        });
+      }
+      return res.status(500).json({
+        message: err.message || 'Failed to issue certificate on server database',
       });
     }
-
-    const updated = [newCert, ...certs];
-    saveDatabaseCertificates(updated);
-    return res.status(201).json(newCert);
   }
 
   return res.status(405).json({ message: 'Method Not Allowed' });

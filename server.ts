@@ -945,14 +945,14 @@ export function configureExpressApp(): express.Application {
 
     let attempts = 0;
     while (attempts < 5000) {
-      const code = generateRandomAlphanumericCode(8);
-      const candidate = `PSR-${code}`;
+      const code = generateRandomAlphanumericCode(6);
+      const candidate = `PS/26/R${code}`;
       if (!existingSet.has(candidate.toUpperCase())) {
         return candidate;
       }
       attempts++;
     }
-    return `PSR-${Date.now().toString(36).toUpperCase()}`;
+    return `PS/26/R${Date.now().toString(36).toUpperCase()}`;
   }
 
   function generateUniqueRandomScrapNumber(certs: Certificate[], reserved: { scrappingNumbers: string[] }): string {

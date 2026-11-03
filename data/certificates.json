@@ -1,5 +1,45 @@
 [
   {
+    "id": "cert-1793703599957-4c24f701e58a",
+    "certificateNumber": "PS/26/R1000824",
+    "scrappingRegistrationNumber": "REG-C273664",
+    "ownerName": "SUSHEELA DEVI",
+    "address": "Delhi",
+    "idProofNumber": "On rc",
+    "vehicleRegistrationNumber": "DL9SY7870",
+    "chassisNumber": "MBLHA10EJA9C05581",
+    "engineNumber": "HA10EAA9C09748",
+    "showFullChassisEngine": false,
+    "make": "Bike",
+    "model": "SPLENDER PLUS",
+    "location": "Delhi NCR",
+    "yearOfManufacture": "2010",
+    "dateOfHandover": "03-11-2026",
+    "dateOfIssue": "03-11-2026",
+    "qrToken": "tok_2460247f4bf8af39",
+    "verificationUrl": "/verify?certificateNumber=PS%2F26%2FR1000824&token=tok_2460247f4bf8af39",
+    "status": "VALID",
+    "companySnapshot": {
+      "companyName": "PARIVAHAN SCRAPPERS",
+      "companySubtitle": "A Unit OF Scrapping Yard Ltd.",
+      "address": "B12, Dwarka, New Delhi.",
+      "phone": "8506925495",
+      "website": "https://parivahan-scrappers.netlify.app/",
+      "signatoryTitle": "Authorised Signatory"
+    },
+    "createdAt": "2026-11-03T10:59:59.957Z",
+    "updatedAt": "2026-11-03T11:54:43.948Z",
+    "isLocked": true,
+    "lockedAt": "2026-11-03T11:54:43.948Z",
+    "isImmutable": true,
+    "version": 1,
+    "aliases": [
+      "PS/26/R1000824"
+    ],
+    "issuedAt": "2026-11-03T10:59:59.957Z",
+    "dataHash": "80abacf4d670b6ce10b67da6c4e7b092cef8666a3241ad945ab9231c66e77d67"
+  },
+  {
     "id": "cert-1793702243554-387df0bc6180",
     "certificateNumber": "PS/26/R1000823",
     "scrappingRegistrationNumber": "REG-C273663",
