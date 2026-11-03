@@ -2254,5 +2254,59 @@
     "details": "Official certificate PS/26/R1000806 verified and authenticated with 100% SHA-256 integrity match.",
     "ip": "127.0.0.1",
     "userAgent": "Unknown"
+  },
+  {
+    "id": "audit-1793697168836-5f1f414e",
+    "timestamp": "2026-11-03T09:12:48.836Z",
+    "certificateId": "AUTH",
+    "certificateNumber": "MAIN-ADMIN",
+    "action": "MAIN_ADMIN_AUTH_SUCCESS",
+    "actor": "main-admin",
+    "details": "Main Admin privileges elevated successfully with valid master password.",
+    "ip": "127.0.0.1",
+    "userAgent": "node"
+  },
+  {
+    "id": "audit-1793697168856-4037a126",
+    "timestamp": "2026-11-03T09:12:48.856Z",
+    "certificateId": "AUTH",
+    "certificateNumber": "MAIN-ADMIN",
+    "action": "MAIN_ADMIN_AUTH_SUCCESS",
+    "actor": "main-admin",
+    "details": "Main Admin privileges elevated successfully with valid master password.",
+    "ip": "127.0.0.1",
+    "userAgent": "node"
+  },
+  {
+    "id": "audit-1793701858914-322bb302",
+    "timestamp": "2026-11-03T10:30:58.914Z",
+    "certificateId": "cert-1793616579739-a6b9db8a2391",
+    "certificateNumber": "PS/26/R1000806",
+    "action": "DELETE_ATTEMPT_FAILED",
+    "details": "Rejected protected operation (undefined) on PS/26/R1000806: Invalid administrative password provided.",
+    "ip": "127.0.0.1",
+    "userAgent": "curl/7.88.1"
+  },
+  {
+    "id": "audit-1793702176616-0e9adcf1",
+    "timestamp": "2026-11-03T10:36:16.616Z",
+    "certificateId": "cert-1793616579739-a6b9db8a2391",
+    "certificateNumber": "PS/26/R1000806",
+    "action": "DELETE_ATTEMPT_FAILED",
+    "details": "Rejected protected operation (undefined) on PS/26/R1000806: Invalid administrative password provided.",
+    "ip": "127.0.0.1",
+    "userAgent": "curl/7.88.1"
+  },
+  {
+    "id": "audit-1793703161860-93f6bf23",
+    "timestamp": "2026-11-03T10:52:41.860Z",
+    "certificateId": "cert-1793702243554-387df0bc6180",
+    "certificateNumber": "PS/26/R1000823",
+    "action": "CERTIFICATE_VERIFIED",
+    "actor": "public-verifier",
+    "dataHash": "4b5047634062962e82c033f0baed9ac012e7db0902f6ad90dff1e250d19fc429",
+    "details": "Official certificate PS/26/R1000823 verified and authenticated with 100% SHA-256 integrity match.",
+    "ip": "127.0.0.1",
+    "userAgent": "curl/7.88.1"
   }
 ]

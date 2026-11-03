@@ -88,13 +88,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   id="nav-tab-certificates"
                   type="button"
-                  onClick={() => {
-                    if (!isMainAdmin && onRequestMainAdmin) {
-                      onRequestMainAdmin();
-                    } else {
-                      onSelectTab('certificates');
-                    }
-                  }}
+                  onClick={() => onSelectTab('certificates')}
                   className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
                     currentTab === 'certificates'
                       ? 'bg-slate-800 text-white shadow-inner'
@@ -103,7 +97,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 >
                   <FileText className="w-4 h-4 text-emerald-400" />
                   <span>All Certificates</span>
-                  {!isMainAdmin && <Lock className="w-3 h-3 text-amber-400 ml-0.5" />}
                 </button>
 
                 {onOpenDirectPdf && (
@@ -218,43 +211,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             ) : isAdmin ? (
               <div className="flex items-center gap-2">
-                {isMainAdmin ? (
-                  <>
-                    <span className="hidden sm:inline-flex items-center gap-1 text-xs bg-amber-500/20 text-amber-300 border border-amber-500/50 px-2.5 py-1 rounded-full font-bold">
-                      <Lock className="w-3 h-3 text-amber-400" />
-                      Main Admin Active
-                    </span>
-                    {onLogoutMainAdmin && (
-                      <button
-                        type="button"
-                        onClick={onLogoutMainAdmin}
-                        className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-amber-200 hover:text-white bg-amber-600/30 hover:bg-amber-600 rounded-md border border-amber-500/40 transition-colors cursor-pointer shadow-xs"
-                        title="Lock database and exit Main Admin mode"
-                      >
-                        <Lock className="w-3 h-3" />
-                        <span>Exit Main Admin</span>
-                      </button>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <span className="hidden sm:inline-block text-xs bg-emerald-950/80 text-emerald-300 border border-emerald-700/50 px-2.5 py-1 rounded-full font-medium">
-                      Admin Logged In
-                    </span>
-                    {onRequestMainAdmin && (
-                      <button
-                        id="btn-nav-unlock-main-admin"
-                        type="button"
-                        onClick={onRequestMainAdmin}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-amber-200 hover:text-white bg-amber-600/30 hover:bg-amber-600 rounded-md border border-amber-500/50 transition-colors cursor-pointer shadow-xs"
-                        title="Unlock Main Admin Protected Database"
-                      >
-                        <Lock className="w-3.5 h-3.5 text-amber-300" />
-                        <span>Main Admin</span>
-                      </button>
-                    )}
-                  </>
-                )}
+                <span className="hidden sm:inline-block text-xs bg-emerald-950/80 text-emerald-300 border border-emerald-700/50 px-2.5 py-1 rounded-full font-medium">
+                  Administrator
+                </span>
                 <button
                   id="btn-admin-logout"
                   type="button"
@@ -319,13 +278,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (!isMainAdmin && onRequestMainAdmin) {
-                      onRequestMainAdmin();
-                    } else {
-                      onSelectTab('certificates');
-                    }
-                  }}
+                  onClick={() => onSelectTab('certificates')}
                   className={`px-2.5 py-2 rounded-lg whitespace-nowrap min-h-[40px] flex items-center gap-1 ${
                     currentTab === 'certificates'
                       ? 'bg-slate-800 text-white font-bold'
@@ -333,18 +286,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   }`}
                 >
                   <span>All Certs</span>
-                  {!isMainAdmin && <Lock className="w-3 h-3 text-amber-400" />}
                 </button>
-                {!isMainAdmin && onRequestMainAdmin && (
-                  <button
-                    type="button"
-                    onClick={onRequestMainAdmin}
-                    className="px-2.5 py-2 rounded-lg whitespace-nowrap min-h-[40px] flex items-center gap-1 font-bold text-amber-300 bg-amber-950/60 border border-amber-500/40"
-                  >
-                    <Lock className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Main Admin</span>
-                  </button>
-                )}
                 {onOpenDirectPdf && (
                   <button
                     type="button"

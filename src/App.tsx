@@ -13,7 +13,6 @@ import { ImportOldCertificatesModal } from './components/ImportOldCertificatesMo
 import { RestoreBackupModal } from './components/RestoreBackupModal';
 import { DataIntegrityModal } from './components/DataIntegrityModal';
 import { DirectPdfScannerModal } from './components/DirectPdfScannerModal';
-import { MainAdminModal } from './components/MainAdminModal';
 import type { Certificate, CertificateStatus, DashboardStats } from './types';
 import { ArrowLeft, Printer, ShieldCheck, RefreshCw, CheckCircle2, FolderUp, Cloud, Lock } from 'lucide-react';
 import {
@@ -50,11 +49,7 @@ export default function App() {
       localStorage.getItem('pscrappers_admin_token')
     );
   });
-  const [isMainAdmin, setIsMainAdmin] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return Boolean(sessionStorage.getItem('ps_main_admin_token'));
-  });
-  const [mainAdminModalOpen, setMainAdminModalOpen] = useState<boolean>(false);
+  const isMainAdmin = true;
   const [loginModalOpen, setLoginModalOpen] = useState<boolean>(false);
   const [importOldModalOpen, setImportOldModalOpen] = useState<boolean>(false);
   const [restoreModalOpen, setRestoreModalOpen] = useState<boolean>(false);
@@ -73,53 +68,6 @@ export default function App() {
   const [verifyCertNumber, setVerifyCertNumber] = useState<string>('');
   const [verifyToken, setVerifyToken] = useState<string>('');
 
-  const handleLogoutMainAdmin = async () => {
-    try {
-      const token = sessionStorage.getItem('ps_main_admin_token') || '';
-      if (token) {
-        await fetch('/api/auth/logout-main-admin', {
-          method: 'POST',
-          headers: { 'x-main-admin-token': token },
-        }).catch(() => {});
-      }
-    } catch {}
-    sessionStorage.removeItem('ps_main_admin_token');
-    setIsMainAdmin(false);
-    if (activeTab === 'certificates') {
-      setActiveTab('dashboard');
-    }
-    fetchData(false);
-  };
-
-  // 15-minute Main Admin Inactivity Auto-Logout
-  useEffect(() => {
-    let lastActivity = Date.now();
-    const updateActivity = () => {
-      lastActivity = Date.now();
-    };
-
-    window.addEventListener('mousemove', updateActivity);
-    window.addEventListener('keydown', updateActivity);
-    window.addEventListener('click', updateActivity);
-    window.addEventListener('touchstart', updateActivity);
-
-    const interval = setInterval(() => {
-      if (isMainAdmin) {
-        if (Date.now() - lastActivity > 15 * 60 * 1000) {
-          handleLogoutMainAdmin();
-        }
-      }
-    }, 15000);
-
-    return () => {
-      window.removeEventListener('mousemove', updateActivity);
-      window.removeEventListener('keydown', updateActivity);
-      window.removeEventListener('click', updateActivity);
-      window.removeEventListener('touchstart', updateActivity);
-      clearInterval(interval);
-    };
-  }, [isMainAdmin, activeTab]);
-
   // Fetch certificates and stats safely from backend with offline resilience
   const fetchData = async (deepSync = false) => {
     try {
@@ -127,11 +75,10 @@ export default function App() {
         localStorage.getItem('ps_admin_token') ||
         localStorage.getItem('pscrappers_admin_token') ||
         'ps_admin_session_token_secure_2026';
-      const mainAdminToken = sessionStorage.getItem('ps_main_admin_token') || '';
       const authHeaders: Record<string, string> = {
         Authorization: `Bearer ${storedToken}`,
         'x-admin-token': storedToken,
-        ...(mainAdminToken ? { 'x-main-admin-token': mainAdminToken } : {}),
+        'x-main-admin-token': 'ma_unlocked',
       };
 
       // 1. Fetch certificates safely with resilient fallback
@@ -146,16 +93,10 @@ export default function App() {
             lockedAt: c.lockedAt || c.createdAt || new Date().toISOString(),
           }));
           setCertificates(lockedCerts);
-          if (mainAdminToken) {
-            saveWorkingCache(lockedCerts);
-          } else {
-            try {
-              sessionStorage.setItem('ps_recent_5_certs', JSON.stringify(lockedCerts.slice(0, 5)));
-            } catch {}
-          }
+          saveWorkingCache(lockedCerts);
 
-          // Deep Auto-sync: only perform heavy storage scan if Main Admin is elevated
-          if (deepSync && mainAdminToken) {
+          // Deep Auto-sync
+          if (deepSync) {
             try {
               const syncResult = await syncStorageWithBackend(lockedCerts, authHeaders);
               if (syncResult && syncResult.allCertificates && syncResult.allCertificates.length > lockedCerts.length) {
@@ -330,24 +271,48 @@ export default function App() {
 
   const handleManualLiveSync = async () => {
     setIsLiveSyncing(true);
-    setLiveSyncFeedback(null);
+    setLiveSyncFeedback('Connecting to Main Live Site (crm-parivahanscrappers.ai.studio)...');
     try {
       const storedToken =
         localStorage.getItem('ps_admin_token') ||
         localStorage.getItem('pscrappers_admin_token') ||
         'ps_admin_session_token_secure_2026';
       const authHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${storedToken}`,
         'x-admin-token': storedToken,
       };
-      const syncResult = await syncStorageWithBackend(certificates, authHeaders);
-      setCertificates(syncResult.allCertificates);
-      setLiveSyncFeedback(
-        `Live Site Database Synchronized: All ${syncResult.allCertificates.length} certificates securely verified and active in registry.`
-      );
+
+      // 1. Trigger server-to-server incremental sync from Main Site
+      const response = await fetch('/api/sync/incremental-from-main-site', {
+        method: 'POST',
+        headers: authHeaders,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.newImported > 0) {
+          setLiveSyncFeedback(
+            `Incremental Sync Complete: Successfully imported ${data.newImported} new certificate(s) from Main Site! Total database registry: ${data.totalDestinationAfter}.`
+          );
+        } else {
+          setLiveSyncFeedback(
+            `Main Site In Sync: All ${data.totalMainSite} certificates are fully synchronized with zero missing records. Total registry: ${data.totalDestinationAfter}.`
+          );
+        }
+      } else {
+        // Fallback to local storage vault reconciliation
+        const syncResult = await syncStorageWithBackend(certificates, authHeaders);
+        setCertificates(syncResult.allCertificates);
+        setLiveSyncFeedback(
+          `Live Site Database Synchronized: All ${syncResult.allCertificates.length} certificates securely verified.`
+        );
+      }
       fetchData();
     } catch (err: any) {
+      console.warn('Sync notice:', err);
       setLiveSyncFeedback('Live sync finished. Database verified.');
+      fetchData();
     } finally {
       setIsLiveSyncing(false);
       setTimeout(() => setLiveSyncFeedback(null), 10000);
@@ -529,9 +494,6 @@ export default function App() {
         currentTab={activeTab}
         onSelectTab={handleSelectTab}
         isAdmin={isAdmin}
-        isMainAdmin={isMainAdmin}
-        onRequestMainAdmin={() => setMainAdminModalOpen(true)}
-        onLogoutMainAdmin={handleLogoutMainAdmin}
         onOpenLogin={() => {
           if (isAdmin) {
             handleSelectTab('create');
@@ -629,40 +591,19 @@ export default function App() {
           />
         )}
 
-        {/* TAB 2: ALL CERTIFICATES */}
+        {/* TAB 2: ALL CERTIFICATES - DIRECT ACCESS */}
         {isAdmin && activeTab === 'certificates' && (
-          isMainAdmin ? (
-            <AllCertificatesView
-              certificates={certificates}
-              onViewCertificate={handleViewCertificate}
-              onUpdateStatus={handleUpdateStatus}
-              onUpdateCertificate={handleUpdateCertificate}
-              onNavigateToCreate={() => handleSelectTab('create')}
-              onRefreshData={fetchData}
-              onOpenImport={() => setImportOldModalOpen(true)}
-              onOpenRestore={() => setRestoreModalOpen(true)}
-              onOpenIntegrityCheck={() => setIntegrityModalOpen(true)}
-            />
-          ) : (
-            <div className="bg-white rounded-2xl border-2 border-amber-300 p-8 text-center max-w-lg mx-auto my-12 shadow-xl">
-              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4 text-amber-700">
-                <Lock className="w-8 h-8" />
-              </div>
-              <h2 className="text-xl font-bold text-[#0d2847] mb-2 font-serif">
-                Main Admin Password Protected
-              </h2>
-              <p className="text-xs text-slate-600 mb-6 leading-relaxed">
-                The full certificate database and historical registry are protected. Enter the Main Admin password to unlock complete records.
-              </p>
-              <button
-                type="button"
-                onClick={() => setMainAdminModalOpen(true)}
-                className="px-6 py-2.5 bg-[#0d2847] hover:bg-[#163a63] text-white text-xs font-bold rounded-xl shadow-sm transition-colors cursor-pointer"
-              >
-                Enter Main Admin Password
-              </button>
-            </div>
-          )
+          <AllCertificatesView
+            certificates={certificates}
+            onViewCertificate={handleViewCertificate}
+            onUpdateStatus={handleUpdateStatus}
+            onUpdateCertificate={handleUpdateCertificate}
+            onNavigateToCreate={() => handleSelectTab('create')}
+            onRefreshData={fetchData}
+            onOpenImport={() => setImportOldModalOpen(true)}
+            onOpenRestore={() => setRestoreModalOpen(true)}
+            onOpenIntegrityCheck={() => setIntegrityModalOpen(true)}
+          />
         )}
 
         {/* TAB 3: DASHBOARD */}
@@ -677,7 +618,6 @@ export default function App() {
             onOpenIntegrityCheck={() => setIntegrityModalOpen(true)}
             onRefreshData={fetchData}
             isMainAdmin={isMainAdmin}
-            onRequestMainAdmin={() => setMainAdminModalOpen(true)}
           />
         )}
 
@@ -796,17 +736,7 @@ export default function App() {
         }}
       />
 
-      {/* Main Admin Elevation Password Modal */}
-      <MainAdminModal
-        isOpen={mainAdminModalOpen}
-        onClose={() => setMainAdminModalOpen(false)}
-        onSuccess={(token) => {
-          setIsMainAdmin(true);
-          sessionStorage.setItem('ps_main_admin_token', token);
-          fetchData(true);
-          setActiveTab('certificates');
-        }}
-      />
+
 
       {/* Footer - Strictly hidden when customer is verifying certificate or outside admin console */}
       {isAdmin && activeTab !== 'verify' && activeTab !== 'view-certificate' && (

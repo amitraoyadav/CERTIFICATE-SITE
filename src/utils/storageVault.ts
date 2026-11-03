@@ -190,22 +190,20 @@ export function saveToLocalVault(cert: Certificate): void {
  */
 export function loadWorkingCache(): Certificate[] {
   try {
-    const isMainAdmin = typeof window !== 'undefined' && Boolean(sessionStorage.getItem('ps_main_admin_token'));
     const map = new Map<string, Certificate>();
 
-    if (isMainAdmin) {
-      // Seed with authoritative preserved certificates only when Main Admin is active
-      AUTHORITATIVE_PRESERVED_CERTIFICATES.forEach((c) => {
-        if (c && c.certificateNumber) {
-          map.set(c.certificateNumber.toUpperCase(), { ...c, isLocked: true });
-        }
-      });
-    }
+    // Seed with authoritative preserved certificates (all 920)
+    AUTHORITATIVE_PRESERVED_CERTIFICATES.forEach((c) => {
+      if (c && c.certificateNumber) {
+        map.set(c.certificateNumber.toUpperCase(), { ...c, isLocked: true });
+      }
+    });
 
     if (typeof window !== 'undefined') {
-      const raw = isMainAdmin
-        ? localStorage.getItem(VAULT_KEY) || localStorage.getItem(WORKING_CACHE_KEY)
-        : sessionStorage.getItem('ps_recent_5_certs') || localStorage.getItem(WORKING_CACHE_KEY);
+      const raw =
+        localStorage.getItem(VAULT_KEY) ||
+        localStorage.getItem(WORKING_CACHE_KEY) ||
+        sessionStorage.getItem('ps_recent_5_certs');
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
@@ -219,8 +217,7 @@ export function loadWorkingCache(): Certificate[] {
         }
       }
     }
-    const result = Array.from(map.values());
-    return isMainAdmin ? result : result.slice(0, 5);
+    return Array.from(map.values());
   } catch {}
   return [];
 }
@@ -496,14 +493,6 @@ export async function syncStorageWithBackend(
   syncedCount: number;
   allCertificates: Certificate[];
 }> {
-  // If not elevated as Main Admin, do NOT attempt to reconcile or upload local storage back to server
-  if (typeof window !== 'undefined' && !sessionStorage.getItem('ps_main_admin_token')) {
-    return {
-      syncedCount: 0,
-      allCertificates: backendCerts.slice(0, 5),
-    };
-  }
-
   // 0. Always fetch latest authoritative certificates from live server database first
   let liveServerList: Certificate[] = Array.isArray(backendCerts) && backendCerts.length > 0 ? [...backendCerts] : [];
   try {

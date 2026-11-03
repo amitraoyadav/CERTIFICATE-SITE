@@ -343,31 +343,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
             TOTAL CERTIFICATES
           </p>
-          {isMainAdmin ? (
-            <>
-              <p className="text-2xl font-bold text-[#0d2847] mt-1 font-mono">
-                {totalCerts}
-              </p>
-              <p className="text-[10px] text-emerald-700 font-semibold mt-1">
-                Permanent DB Records
-              </p>
-            </>
-          ) : (
-            <>
-              <p className="text-2xl font-bold text-[#0d2847] mt-1 font-mono">
-                5 <span className="text-xs text-slate-400 font-sans font-normal">(Recent)</span>
-              </p>
-              {onRequestMainAdmin && (
-                <button
-                  type="button"
-                  onClick={onRequestMainAdmin}
-                  className="text-[10px] text-amber-700 hover:text-amber-800 font-bold mt-1 flex items-center gap-1 cursor-pointer"
-                >
-                  <Lock className="w-2.5 h-2.5" /> Unlock All
-                </button>
-              )}
-            </>
-          )}
+          <p className="text-2xl font-bold text-[#0d2847] mt-1 font-mono">
+            {totalCerts}
+          </p>
+          <p className="text-[10px] text-emerald-700 font-semibold mt-1">
+            Permanent DB Records
+          </p>
         </div>
 
         {/* CARD 2: LAST CERTIFICATE NUMBER */}
@@ -492,13 +473,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <button
             type="button"
-            onClick={() => {
-              if (!isMainAdmin && onRequestMainAdmin) {
-                onRequestMainAdmin();
-              } else {
-                onNavigate('certificates');
-              }
-            }}
+            onClick={() => onNavigate('certificates')}
             className="text-xs font-semibold text-[#0d2847] hover:text-emerald-700 flex items-center gap-1 cursor-pointer transition-colors"
           >
             View All Records
