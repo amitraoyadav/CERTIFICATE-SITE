@@ -1,5 +1,57 @@
 [
   {
+    "id": "audit-1793734077944-2a853d55",
+    "timestamp": "2026-11-03T19:27:57.944Z",
+    "certificateId": "cert-1793734077715-3309bcbea6f9",
+    "certificateNumber": "PS/26/R8KGB5B",
+    "action": "CERTIFICATE_CREATED",
+    "actor": "administrator",
+    "newStatus": "VALID",
+    "dataHash": "a23ee92f8181a8e5d5910e8ce97a80d1a7fdcf4fa5a1e418a864f5b019a6bf77",
+    "details": "Official certificate PS/26/R8KGB5B created for AUTHORIZED OVERRIDE USER with verified unique random allocation and permanent persistent database storage.",
+    "ip": "127.0.0.1",
+    "userAgent": "Unknown"
+  },
+  {
+    "id": "audit-1793734077702-b36ef2a3",
+    "timestamp": "2026-11-03T19:27:57.702Z",
+    "certificateId": "cert-1793734077265-fcbab69a7934",
+    "certificateNumber": "PS/26/RH8ANX6",
+    "action": "CERTIFICATE_CREATED",
+    "actor": "administrator",
+    "newStatus": "VALID",
+    "dataHash": "2bcff35e9db34b2592105e6865b539afb8ded5add27e9bbbf4d24dd0c6045e6a",
+    "details": "Official certificate PS/26/RH8ANX6 created for DEV VERIFIED USER FB09DD with verified unique random allocation and permanent persistent database storage.",
+    "ip": "127.0.0.1",
+    "userAgent": "Unknown"
+  },
+  {
+    "id": "audit-1793734038917-12f00309",
+    "timestamp": "2026-11-03T19:27:18.917Z",
+    "certificateId": "cert-1793734038471-276ccb0733d7",
+    "certificateNumber": "PS/26/REGBQDG",
+    "action": "CERTIFICATE_CREATED",
+    "actor": "administrator",
+    "newStatus": "VALID",
+    "dataHash": "51fdc2168b27310e0fc3160e24c571bfaab4e12ac751ba1d52a99b5abd61e211",
+    "details": "Official certificate PS/26/REGBQDG created for AUTHORIZED OVERRIDE USER with verified unique random allocation and permanent persistent database storage.",
+    "ip": "127.0.0.1",
+    "userAgent": "Unknown"
+  },
+  {
+    "id": "audit-1793734038463-e3a03fb6",
+    "timestamp": "2026-11-03T19:27:18.463Z",
+    "certificateId": "cert-1793734037791-b6154036d796",
+    "certificateNumber": "PS/26/R88X97S",
+    "action": "CERTIFICATE_CREATED",
+    "actor": "administrator",
+    "newStatus": "VALID",
+    "dataHash": "47dcf261abd430a5dbbdef46b780fa7e9fefb6c82d0da5d8a67615371abd27c8",
+    "details": "Official certificate PS/26/R88X97S created for DEV VERIFIED USER A25699 with verified unique random allocation and permanent persistent database storage.",
+    "ip": "127.0.0.1",
+    "userAgent": "Unknown"
+  },
+  {
     "id": "audit-1793733210720-c559442c",
     "timestamp": "2026-11-03T19:13:30.720Z",
     "certificateId": "cert-1793733210693-74477abc9415",

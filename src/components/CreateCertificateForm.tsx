@@ -459,13 +459,16 @@ export const CreateCertificateForm: React.FC<CreateCertificateFormProps> = ({
 
         const userMessage =
           errorData?.message ||
+          errorData?.error ||
           (httpStatus === 409
-            ? 'Certificate already exists for this vehicle in the central registry.'
+            ? 'Duplicate vehicle detected: this vehicle is already registered in the central database.'
             : httpStatus === 404
-            ? 'API route /api/certificates not reached on serverless deployment.'
+            ? 'Serverless route /api/certificates not reached on deployment.'
             : httpStatus === 401 || httpStatus === 403
-            ? 'Administrator session unauthorized. Please check credentials.'
-            : `Failed to issue certificate on server database (HTTP ${httpStatus})`);
+            ? 'Administrator session unauthorized. Please check administrator credentials.'
+            : httpStatus === 400
+            ? 'Incomplete or invalid certificate payload.'
+            : `Database persistence error on server (HTTP ${httpStatus})`);
 
         if (errorData?.isDuplicateVehicle && errorData.existingCertificate) {
           setDuplicateCert(errorData.existingCertificate);

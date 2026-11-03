@@ -1,0 +1,37 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isValidCertificateNumber(certNo) {
+      return certNo is string && certNo.size() >= 5 && certNo.size() <= 40;
+    }
+
+    // Public verification & certificate access
+    match /certificates/{certificateId} {
+      allow read: if true;
+      allow write: if request.resource.data.certificateNumber != null &&
+                      request.resource.data.ownerName != null;
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /metadata/{docId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /audit_logs/{logId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if false; // Immutable audit log
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

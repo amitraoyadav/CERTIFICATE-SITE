@@ -782,7 +782,7 @@ export async function handleApiRequest(req: any, res: any) {
 
         // Form creation payload from Make Certificate
         if (body.ownerName && String(body.ownerName).trim()) {
-          const created = createAndSaveCertificateRecord(body, req);
+          const created = await createAndSaveCertificateRecord(body, req);
           return res.status(201).json(created);
         }
 
@@ -797,7 +797,10 @@ export async function handleApiRequest(req: any, res: any) {
         });
       } catch (err: any) {
         console.error('[POST /api/certificates] Error:', err);
-        const errMsg = err?.message || 'Failed to issue certificate on server database';
+        const errMsg = err?.message || 'Database write operation failed on server';
+        const statusCode = err?.statusCode || (err?.isDuplicateVehicle ? 409 : 500);
+        const errorCode = err?.errorCode || (err?.isDuplicateVehicle ? 'ERR_DUPLICATE_VEHICLE' : 'ERR_DATABASE_WRITE_FAILURE');
+
         if (err?.isDuplicateVehicle) {
           return res.status(409).json({
             statusCode: 409,
@@ -811,9 +814,9 @@ export async function handleApiRequest(req: any, res: any) {
             timestamp: new Date().toISOString(),
           });
         }
-        return res.status(500).json({
-          statusCode: 500,
-          errorCode: 'ERR_DATABASE_WRITE_FAILURE',
+        return res.status(statusCode).json({
+          statusCode,
+          errorCode,
           message: errMsg,
           error: String(err?.message || err),
           endpoint: '/api/certificates',

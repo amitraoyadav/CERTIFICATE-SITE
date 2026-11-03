@@ -1,0 +1,87 @@
+{
+  "entities": {
+    "Certificate": {
+      "title": "Certificate",
+      "description": "Vehicle scrapping certificate record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Internal certificate ID" },
+        "certificateNumber": { "type": "string", "description": "Unique certificate number" },
+        "scrappingRegistrationNumber": { "type": "string", "description": "Unique scrap registration number" },
+        "ownerName": { "type": "string", "description": "Registered owner name" },
+        "address": { "type": "string", "description": "Owner address" },
+        "idProofNumber": { "type": "string", "description": "Owner ID proof number" },
+        "vehicleRegistrationNumber": { "type": "string", "description": "Vehicle registration number" },
+        "chassisNumber": { "type": "string", "description": "Chassis / VIN number" },
+        "engineNumber": { "type": "string", "description": "Engine / motor number" },
+        "showFullChassisEngine": { "type": "boolean", "description": "Whether full chassis and engine are visible" },
+        "make": { "type": "string", "description": "Vehicle manufacturer" },
+        "model": { "type": "string", "description": "Vehicle model" },
+        "location": { "type": "string", "description": "Scrapping facility location" },
+        "yearOfManufacture": { "type": "string", "description": "Year of vehicle manufacture" },
+        "dateOfHandover": { "type": "string", "description": "Date vehicle was handed over" },
+        "dateOfIssue": { "type": "string", "description": "Date certificate was issued" },
+        "qrToken": { "type": "string", "description": "Security verification QR token" },
+        "verificationUrl": { "type": "string", "description": "Public verification URL" },
+        "status": { "type": "string", "description": "Certificate validity status", "enum": ["VALID", "REVOKED", "CANCELLED", "SUPERSEDED"] },
+        "statusReason": { "type": "string", "description": "Reason for cancellation or status change" },
+        "dataHash": { "type": "string", "description": "Cryptographic SHA-256 data integrity hash" },
+        "isLocked": { "type": "boolean", "description": "Lock indicator ensuring immutability" },
+        "isImmutable": { "type": "boolean", "description": "Immutability guarantee" },
+        "version": { "type": "number", "description": "Certificate version number" },
+        "createdAt": { "type": "string", "description": "ISO timestamp of creation" },
+        "updatedAt": { "type": "string", "description": "ISO timestamp of last update" },
+        "companySnapshot": { "type": "object", "description": "Snapshot of issuing facility details" }
+      },
+      "required": ["certificateNumber", "scrappingRegistrationNumber", "ownerName", "status", "dataHash"]
+    },
+    "SystemSettings": {
+      "title": "SystemSettings",
+      "description": "System configuration and facility details",
+      "type": "object",
+      "properties": {
+        "companyName": { "type": "string" },
+        "companySubtitle": { "type": "string" },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "website": { "type": "string" },
+        "signatoryTitle": { "type": "string" },
+        "certificatePrefix": { "type": "string" },
+        "scrappingPrefix": { "type": "string" }
+      }
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable audit trail log entry",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "certificateId": { "type": "string" },
+        "certificateNumber": { "type": "string" },
+        "action": { "type": "string" },
+        "actor": { "type": "string" },
+        "details": { "type": "string" }
+      },
+      "required": ["timestamp", "action", "details"]
+    }
+  },
+  "firestore": {
+    "/certificates/{certificateId}": {
+      "schema": "Certificate",
+      "description": "Collection of authoritative vehicle scrapping certificates"
+    },
+    "/settings/{settingId}": {
+      "schema": "SystemSettings",
+      "description": "System and facility settings"
+    },
+    "/audit_logs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Immutable security and action audit log entries"
+    },
+    "/metadata/{metadataId}": {
+      "schema": "object",
+      "description": "Metadata such as reserved numbers"
+    }
+  }
+}
