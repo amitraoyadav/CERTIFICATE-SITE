@@ -1,7 +1,6 @@
 import fs from 'fs';
 import path from 'path';
 import type { Certificate } from '../src/types';
-import preservedBaseline from '../src/data/authoritativePreservedCertificates.json';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const CERTIFICATES_FILE = path.join(DATA_DIR, 'certificates.json');
@@ -29,8 +28,22 @@ export function getDatabaseCertificates(): Certificate[] {
     console.warn('[DB] Filesystem read warning, falling back to embedded baseline:', err);
   }
 
-  // 2. Use embedded synchronized authoritative baseline
-  inMemoryCertificates = preservedBaseline as Certificate[];
+  // 2. Fallback to authoritative baseline file
+  try {
+    const baselinePath = path.join(process.cwd(), 'src/data/authoritativePreservedCertificates.json');
+    if (fs.existsSync(baselinePath)) {
+      const raw = fs.readFileSync(baselinePath, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        inMemoryCertificates = parsed;
+        return parsed;
+      }
+    }
+  } catch (baselineErr) {
+    console.warn('[DB] Authoritative baseline read warning:', baselineErr);
+  }
+
+  inMemoryCertificates = [];
   return inMemoryCertificates;
 }
 

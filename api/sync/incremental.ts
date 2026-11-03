@@ -1,7 +1,7 @@
 import https from 'https';
 import http from 'http';
-import { getDatabaseCertificates, saveDatabaseCertificates } from '../_db';
-import type { Certificate } from '../../src/types';
+import { getDatabaseCertificates, saveDatabaseCertificates } from '../_db.ts';
+import type { Certificate } from '../../src/types.ts';
 
 function fetchFromLive(endpoint: string): Promise<any> {
   const liveBase = process.env.LIVE_DATABASE_URL || 'https://crm-parivahanscrappers.ai.studio';

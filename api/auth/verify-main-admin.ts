@@ -1,4 +1,4 @@
-import { verifyMainAdminPassword, createMainAdminToken, MAIN_ADMIN_TIMEOUT_MS } from '../_auth';
+import { verifyMainAdminPassword, createMainAdminToken, MAIN_ADMIN_TIMEOUT_MS } from '../_auth.ts';
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');

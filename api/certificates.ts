@@ -1,5 +1,5 @@
-import { getDatabaseCertificates, saveDatabaseCertificates } from './_db';
-import type { Certificate } from '../src/types';
+import { getDatabaseCertificates, saveDatabaseCertificates } from './_db.ts';
+import type { Certificate } from '../src/types.ts';
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');

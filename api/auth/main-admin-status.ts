@@ -1,4 +1,4 @@
-import { isMainAdminTokenValid } from '../_auth';
+import { isMainAdminTokenValid } from '../_auth.ts';
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
