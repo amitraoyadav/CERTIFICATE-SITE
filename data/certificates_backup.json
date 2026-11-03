@@ -1,5 +1,46 @@
 [
   {
+    "id": "cert-1793733210693-74477abc9415",
+    "certificateNumber": "PS/26/RSZCTAL",
+    "scrappingRegistrationNumber": "REG-CJ7BEWK",
+    "ownerName": "VERCEL STAGING TEST",
+    "address": "Not Provided",
+    "idProofNumber": "Not Provided",
+    "vehicleRegistrationNumber": "DL 09 XY 8888",
+    "chassisNumber": "CHAS-TEST-8888",
+    "engineNumber": "ENG-TEST-8888",
+    "showFullChassisEngine": false,
+    "make": "Two Wheeler",
+    "model": "Standard",
+    "location": "Delhi NCR",
+    "yearOfManufacture": "2026",
+    "dateOfHandover": "2026-11-03",
+    "dateOfIssue": "2026-11-03",
+    "qrToken": "tok_8b6ba1270b8570a1",
+    "verificationUrl": "/verify?certificateNumber=PS%2F26%2FRSZCTAL&token=tok_8b6ba1270b8570a1",
+    "status": "VALID",
+    "isLocked": true,
+    "isImmutable": true,
+    "version": 1,
+    "issuedAt": "2026-11-03T19:13:30.693Z",
+    "lockedAt": "2026-11-03T19:13:30.693Z",
+    "createdBy": "Administrator",
+    "companySnapshot": {
+      "companyName": "PARIVAHAN SCRAPPERS",
+      "companySubtitle": "A Unit OF Scrapping Yard Ltd.",
+      "address": "B12, Dwarka, New Delhi.",
+      "phone": "8506925495",
+      "website": "https://parivahan-scrappers.netlify.app/",
+      "signatoryTitle": "Authorised Signatory"
+    },
+    "createdAt": "2026-11-03T19:13:30.693Z",
+    "updatedAt": "2026-11-03T19:13:30.693Z",
+    "dataHash": "bc68d14b8061a2b1e9a8f198087faa70f89c0d44710b1e02bf23f0133a168daf",
+    "aliases": [
+      "PS/26/RSZCTAL"
+    ]
+  },
+  {
     "id": "cert-1793727796219-632565f7750a",
     "certificateNumber": "PS/26/RE82M5K",
     "scrappingRegistrationNumber": "REG-CVMZQCP",
@@ -38307,5 +38348,46 @@
     ],
     "issuedAt": "2026-11-03T17:30:13.110Z",
     "dataHash": "9086d05011f7dd8d8556918f8984ea7557b0602b7c6cd6b29a168e992c196fe0"
+  },
+  {
+    "id": "cert-1793733165466-cb90ebcbb39a",
+    "certificateNumber": "PS/26/RV7KUPM",
+    "scrappingRegistrationNumber": "REG-CMWSDUF",
+    "ownerName": "TEST OWNER",
+    "address": "Not Provided",
+    "idProofNumber": "Not Provided",
+    "vehicleRegistrationNumber": "NOT PROVIDED",
+    "chassisNumber": "NOT PROVIDED",
+    "engineNumber": "NOT PROVIDED",
+    "showFullChassisEngine": false,
+    "make": "Two Wheeler",
+    "model": "Standard",
+    "location": "Delhi NCR",
+    "yearOfManufacture": "2026",
+    "dateOfHandover": "2026-11-03",
+    "dateOfIssue": "2026-11-03",
+    "qrToken": "tok_0113bebb1d0939ac",
+    "verificationUrl": "/verify?certificateNumber=PS%2F26%2FRV7KUPM&token=tok_0113bebb1d0939ac",
+    "status": "VALID",
+    "isLocked": true,
+    "isImmutable": true,
+    "version": 1,
+    "issuedAt": "2026-11-03T19:12:45.466Z",
+    "lockedAt": "2026-11-03T19:12:45.466Z",
+    "createdBy": "Admin",
+    "companySnapshot": {
+      "companyName": "PARIVAHAN SCRAPPERS",
+      "companySubtitle": "A Unit OF Scrapping Yard Ltd.",
+      "address": "B12, Dwarka, New Delhi.",
+      "phone": "8506925495",
+      "website": "https://parivahan-scrappers.netlify.app/",
+      "signatoryTitle": "Authorised Signatory"
+    },
+    "createdAt": "2026-11-03T19:12:45.466Z",
+    "updatedAt": "2026-11-03T19:12:45.466Z",
+    "dataHash": "ab6fbe2dc623c201d4ba5b4ae34e7b815dc8f83cd12026f096fe0ef3ed55b169",
+    "aliases": [
+      "PS/26/RV7KUPM"
+    ]
   }
 ]

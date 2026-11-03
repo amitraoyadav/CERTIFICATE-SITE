@@ -1,5 +1,18 @@
 [
   {
+    "id": "audit-1793733210720-c559442c",
+    "timestamp": "2026-11-03T19:13:30.720Z",
+    "certificateId": "cert-1793733210693-74477abc9415",
+    "certificateNumber": "PS/26/RSZCTAL",
+    "action": "CERTIFICATE_CREATED",
+    "actor": "administrator",
+    "newStatus": "VALID",
+    "dataHash": "bc68d14b8061a2b1e9a8f198087faa70f89c0d44710b1e02bf23f0133a168daf",
+    "details": "Official certificate PS/26/RSZCTAL created for VERCEL STAGING TEST with verified unique random allocation.",
+    "ip": "127.0.0.1",
+    "userAgent": "Unknown"
+  },
+  {
     "id": "audit-1793727796244-e43b384b",
     "timestamp": "2026-11-03T17:43:16.244Z",
     "certificateId": "cert-1793727796219-632565f7750a",
