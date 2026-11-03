@@ -260,3 +260,46 @@ export interface PdfImportReport {
   failedFiles: Array<{ filename: string; error: string }>;
 }
 
+export interface MigrationChecksumInfo {
+  size: number;
+  sha256: string;
+  recordCount: number;
+}
+
+export interface MigrationManifest {
+  projectName: string;
+  exportDate: string;
+  sourceDatabase: string;
+  targetDeployment: string;
+  totalRecordsExported: number;
+  totalUniqueCertificateIds: number;
+  totalUniqueCertificateNumbers: number;
+  recordCountsByStatus: {
+    VALID: number;
+    CANCELLED: number;
+    SUPERSEDED: number;
+  };
+  backupVersion: string;
+  checksumInformation: Record<string, MigrationChecksumInfo>;
+  integrityVerificationStatus: string;
+  missingRecordCount: number;
+  duplicateRecordCount: number;
+  exportErrors: string[];
+}
+
+export interface MigrationCenterStats {
+  totalLiveCertificates: number;
+  totalSuccessfullyBackedUp: number;
+  totalVerifiedRecords: number;
+  newRecords: number;
+  updatedRecords: number;
+  duplicateRecords: number;
+  missingRecords: number;
+  failedRecords: number;
+  lastSuccessfulBackup: string;
+  lastSuccessfulSync: string;
+  manifest?: MigrationManifest;
+  integrityReport?: any;
+  exportFiles?: Array<{ name: string; size: number; sha256: string; recordCount: number }>;
+}
+

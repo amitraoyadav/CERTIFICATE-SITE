@@ -1,0 +1,70 @@
+{
+  "projectName": "PARIVAHAN SCRAPPERS - VEHICLE SCRAPPING CERTIFICATE REGISTRY",
+  "exportDate": "2026-11-02T14:41:46.343Z",
+  "sourceDatabase": "Live Production Cloud Database (crm-parivahanscrappers.ai.studio)",
+  "targetDeployment": "Vercel + Persistent Managed Database",
+  "totalLiveRecords": 920,
+  "totalRecordsExported": 920,
+  "totalUniqueCertificateIds": 920,
+  "totalUniqueCertificateNumbers": 920,
+  "totalUniqueQrTokens": 920,
+  "recordCountsByStatus": {
+    "VALID": 917,
+    "CANCELLED": 2,
+    "SUPERSEDED": 1,
+    "REVOKED": 0
+  },
+  "duplicateVehicleRegistrations": 126,
+  "missingRecordCount": 0,
+  "failedRecordCount": 0,
+  "backupVersion": "2026.11.02-ALL-920-FINAL",
+  "checksumInformation": {
+    "COMPLETE_LIVE_DATABASE_BACKUP.json": {
+      "recordCount": 920,
+      "sizeBytes": 1437141,
+      "sha256": "df495a1845380669c578f25e5cca083dfe2d14e7e18df92cd2fd0b345df20b5f"
+    },
+    "ALL_920_CERTIFICATES.json": {
+      "recordCount": 920,
+      "sizeBytes": 1359147,
+      "sha256": "c1f50289d2813a63f1a7adae2a2a633115ca1ee2ae66c1c115d02d090d6537a7"
+    },
+    "MASTER_CERTIFICATE_REGISTRY.json": {
+      "recordCount": 920,
+      "sizeBytes": 1359147,
+      "sha256": "c1f50289d2813a63f1a7adae2a2a633115ca1ee2ae66c1c115d02d090d6537a7"
+    },
+    "CERTIFICATE_SETTINGS.json": {
+      "recordCount": 12,
+      "sizeBytes": 454,
+      "sha256": "c0899ab9823431119d67fa800020fcc23f8e269ae88b94530c5e4b4ad53bb388"
+    },
+    "RESERVED_NUMBERS.json": {
+      "recordCount": 2,
+      "sizeBytes": 620,
+      "sha256": "f1934efdd74e26018844343d30c575d60c7fedacc9bcd1544d8b2f4f53e3cf4e"
+    },
+    "RESERVED_CERTIFICATE_NUMBERS.json": {
+      "recordCount": 2,
+      "sizeBytes": 620,
+      "sha256": "f1934efdd74e26018844343d30c575d60c7fedacc9bcd1544d8b2f4f53e3cf4e"
+    },
+    "AUDIT_LOGS.json": {
+      "recordCount": 178,
+      "sizeBytes": 88129,
+      "sha256": "55dcf8dad2d413b42161ef83b00411c2f9de0863902311fe12abf3b263d8d39f"
+    },
+    "CERTIFICATE_HISTORY.json": {
+      "recordCount": 178,
+      "sizeBytes": 77720,
+      "sha256": "aad0d3fa8c13d97ee3cefc1aaa3174ae4869bde756f0b64d4c5a013a975aabd4"
+    },
+    "DATA_INTEGRITY_REPORT.json": {
+      "recordCount": 13,
+      "sizeBytes": 549,
+      "sha256": "f49ddd587aa4df06c173ea7ca41a0e84d1f1f0213b0b1ea56bef6e507b191e24"
+    }
+  },
+  "integrityVerificationStatus": "PASSED (100% Verified, Zero Data Loss, Zero Corruption)",
+  "exportErrors": []
+}

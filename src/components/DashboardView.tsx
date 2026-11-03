@@ -25,6 +25,7 @@ import type { DashboardStats, Certificate, DataIntegrityReport } from '../types'
 import { isDriveConnected, googleDriveSignIn, auth } from '../services/googleDriveAuth';
 import { syncAllCertificatesFromGoogleDrive } from '../services/googleDriveService';
 import { GoogleDriveSyncSection } from './GoogleDriveSyncSection';
+import { FullDatabaseSyncMigrationCentre } from './FullDatabaseSyncMigrationCentre';
 
 interface DashboardViewProps {
   stats: DashboardStats | null;
@@ -463,6 +464,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </p>
         </div>
       </div>
+
+      {/* FULL DATABASE SYNC & MIGRATION CENTRE (Section 6) */}
+      <FullDatabaseSyncMigrationCentre onDataChanged={onRefreshData} isMainAdmin={isMainAdmin} />
 
       {/* Google Drive Sync Section */}
       <div id="drive-sync-section">

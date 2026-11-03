@@ -1,0 +1,20 @@
+{
+  "reportTimestamp": "2026-11-02T14:41:46.187Z",
+  "totalAudited": 920,
+  "totalVerified": 920,
+  "intactHashes": 919,
+  "recomputedHashes": 1,
+  "statusBreakdown": {
+    "VALID": 917,
+    "CANCELLED": 2,
+    "SUPERSEDED": 1,
+    "REVOKED": 0
+  },
+  "uniqueCertificateNumbersCount": 920,
+  "uniqueCertificateIdsCount": 920,
+  "uniqueQrTokensCount": 920,
+  "duplicateVehicleRegistrationsCount": 126,
+  "missingRecordsCount": 0,
+  "failedExportsCount": 0,
+  "integrityVerificationStatus": "100% VERIFIED - ZERO CORRUPTION - ALL 920 RECORDS INTACT"
+}
