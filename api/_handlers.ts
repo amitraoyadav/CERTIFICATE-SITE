@@ -168,10 +168,20 @@ export async function handleApiRequest(req: any, res: any) {
   if (!pathname.startsWith('/api')) {
     pathname = `/api${pathname.startsWith('/') ? pathname : `/${pathname}`}`;
   }
+  // Strip duplicate /api prefixes
+  while (pathname.startsWith('/api/api')) {
+    pathname = pathname.replace('/api/api', '/api');
+  }
   // Strip trailing slash (except root /api)
   if (pathname.length > 4 && pathname.endsWith('/')) {
     pathname = pathname.slice(0, -1);
   }
+
+  // Extract or generate diagnostic request ID
+  const traceId =
+    (req.headers && (req.headers['x-vercel-id'] || req.headers['x-request-id'])) ||
+    `req-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  res.setHeader('x-request-id', String(traceId));
 
   // Normalize query object
   const query: Record<string, string> = {};
@@ -734,7 +744,15 @@ export async function handleApiRequest(req: any, res: any) {
 
     if (method === 'POST') {
       if (!body || typeof body !== 'object') {
-        return res.status(400).json({ message: 'Invalid certificate payload provided.' });
+        return res.status(400).json({
+          statusCode: 400,
+          errorCode: 'ERR_INVALID_PAYLOAD',
+          message: 'Invalid certificate payload provided. Expected a valid JSON object.',
+          endpoint: '/api/certificates',
+          method: 'POST',
+          requestId: traceId,
+          timestamp: new Date().toISOString(),
+        });
       }
 
       const releaseLock = await certCreationMutex.acquire();
@@ -747,7 +765,13 @@ export async function handleApiRequest(req: any, res: any) {
           );
           if (exists) {
             return res.status(409).json({
+              statusCode: 409,
+              errorCode: 'ERR_DUPLICATE_CERT_NUMBER',
               message: `Certificate number ${newCert.certificateNumber} already exists in registry.`,
+              endpoint: '/api/certificates',
+              method: 'POST',
+              requestId: traceId,
+              timestamp: new Date().toISOString(),
             });
           }
           const updated = [newCert, ...certs];
@@ -757,30 +781,60 @@ export async function handleApiRequest(req: any, res: any) {
         }
 
         // Form creation payload from Make Certificate
-        if (body.ownerName) {
+        if (body.ownerName && String(body.ownerName).trim()) {
           const created = createAndSaveCertificateRecord(body, req);
           return res.status(201).json(created);
         }
 
-        return res.status(400).json({ message: 'Owner name is mandatory to issue a certificate.' });
+        return res.status(400).json({
+          statusCode: 400,
+          errorCode: 'ERR_MISSING_OWNER_NAME',
+          message: 'Owner name is mandatory to issue a certificate.',
+          endpoint: '/api/certificates',
+          method: 'POST',
+          requestId: traceId,
+          timestamp: new Date().toISOString(),
+        });
       } catch (err: any) {
         console.error('[POST /api/certificates] Error:', err);
         const errMsg = err?.message || 'Failed to issue certificate on server database';
         if (err?.isDuplicateVehicle) {
           return res.status(409).json({
+            statusCode: 409,
+            errorCode: 'ERR_DUPLICATE_VEHICLE',
             isDuplicateVehicle: true,
             message: errMsg,
             existingCertificate: err.existingCertificate,
+            endpoint: '/api/certificates',
+            method: 'POST',
+            requestId: traceId,
+            timestamp: new Date().toISOString(),
           });
         }
         return res.status(500).json({
+          statusCode: 500,
+          errorCode: 'ERR_DATABASE_WRITE_FAILURE',
           message: errMsg,
           error: String(err?.message || err),
+          endpoint: '/api/certificates',
+          method: 'POST',
+          requestId: traceId,
+          timestamp: new Date().toISOString(),
         });
       } finally {
         releaseLock();
       }
     }
+
+    return res.status(405).json({
+      statusCode: 405,
+      errorCode: 'ERR_METHOD_NOT_ALLOWED',
+      message: `HTTP Method ${method} is not supported on /api/certificates. Allowed: GET, POST`,
+      endpoint: '/api/certificates',
+      method,
+      requestId: traceId,
+      timestamp: new Date().toISOString(),
+    });
   }
 
   // ----------------------------------------------------

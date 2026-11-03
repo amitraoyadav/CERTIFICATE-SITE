@@ -17,6 +17,9 @@ import {
   FileCheck2,
   Cloud,
   RefreshCw,
+  Copy,
+  Check,
+  Terminal,
 } from 'lucide-react';
 import type { Certificate } from '../types';
 import { maskChassisNumber, maskEngineNumber } from '../utils/maskUtils';
@@ -132,6 +135,8 @@ export const CreateCertificateForm: React.FC<CreateCertificateFormProps> = ({
     setAllowDuplicateOverride(false);
     setIncludeIdProof(false);
     setErrorMessage(null);
+    setDiagnosticError(null);
+    setCopiedDiagnostic(false);
   };
 
   interface DuplicateInfo {
@@ -150,12 +155,25 @@ export const CreateCertificateForm: React.FC<CreateCertificateFormProps> = ({
     model?: string;
   }
 
+  interface DiagnosticErrorDetails {
+    httpStatus: number | string;
+    errorCode: string;
+    message: string;
+    endpoint: string;
+    requestId: string;
+    timestamp: string;
+    details?: string;
+    isDuplicate?: boolean;
+  }
+
   const [duplicateCert, setDuplicateCert] = useState<DuplicateInfo | null>(null);
   const [allowDuplicateOverride, setAllowDuplicateOverride] = useState(false);
   const [includeIdProof, setIncludeIdProof] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [diagnosticError, setDiagnosticError] = useState<DiagnosticErrorDetails | null>(null);
+  const [copiedDiagnostic, setCopiedDiagnostic] = useState(false);
 
   const [isFetchingNumbers, setIsFetchingNumbers] = useState(false);
 
@@ -265,6 +283,9 @@ export const CreateCertificateForm: React.FC<CreateCertificateFormProps> = ({
 
   const handleFillSample = (sampleType: 'splendor' | 'pulsar') => {
     setIncludeIdProof(true);
+    setErrorMessage(null);
+    setDiagnosticError(null);
+    const randSuffix = Math.floor(1000 + Math.random() * 9000).toString();
     if (sampleType === 'splendor') {
       setSelectedBrandOption('Hero Honda');
       setFormData({
@@ -272,9 +293,9 @@ export const CreateCertificateForm: React.FC<CreateCertificateFormProps> = ({
         address: 'Not Provided',
         idProofType: 'Aadhaar Card',
         idProofNumber: '9876 5432 1098',
-        vehicleRegistrationNumber: 'DL 01 AB 1373',
-        chassisNumber: '01373',
-        engineNumber: '02098',
+        vehicleRegistrationNumber: `DL 01 AB ${randSuffix}`,
+        chassisNumber: `SP01${randSuffix}`,
+        engineNumber: `ENG${randSuffix}`,
         showFullChassisEngine: false,
         make: 'Hero Honda',
         model: 'Splendor (Alloy)',
@@ -290,9 +311,9 @@ export const CreateCertificateForm: React.FC<CreateCertificateFormProps> = ({
         address: 'Rohini Sector 7, Delhi',
         idProofType: 'PAN Card',
         idProofNumber: 'ABCDE1234F',
-        vehicleRegistrationNumber: 'DL 08 CD 4921',
-        chassisNumber: 'MD2A11CY3NC00981',
-        engineNumber: 'DHGBNC01294',
+        vehicleRegistrationNumber: `DL 08 CD ${randSuffix}`,
+        chassisNumber: `MD2A11CY3NC${randSuffix}`,
+        engineNumber: `DHGBNC${randSuffix}`,
         showFullChassisEngine: false,
         make: 'Bajaj',
         model: 'Pulsar 150',
@@ -396,27 +417,76 @@ export const CreateCertificateForm: React.FC<CreateCertificateFormProps> = ({
       }
 
       if (!res || !res.ok) {
-        if (res && res.status === 429) {
-          throw new Error('Server rate limit reached. Please wait a moment before trying again.');
-        }
         let errorData: any = null;
+        let rawBody = '';
         try {
           errorData = await res?.json();
         } catch {
-          const rawText = await res?.text().catch(() => '');
-          if (rawText) {
-            errorData = { message: `Server returned HTTP ${res?.status || 500}: ${rawText.slice(0, 150)}` };
+          rawBody = await res?.text().catch(() => '');
+          if (rawBody) {
+            try {
+              errorData = JSON.parse(rawBody);
+            } catch {
+              errorData = { message: rawBody.slice(0, 300) };
+            }
           }
         }
-        if (errorData?.isDuplicateVehicle) {
-          setDuplicateCert(errorData.existingCertificate);
-          throw new Error(errorData.message || 'Duplicate vehicle record detected in registry.');
-        }
-        throw new Error(
+
+        const httpStatus = res?.status || 500;
+        const requestId =
+          res?.headers.get('x-request-id') ||
+          res?.headers.get('x-vercel-id') ||
+          errorData?.requestId ||
+          `req-trace-${Date.now().toString(36)}`;
+
+        const errorCode =
+          errorData?.errorCode ||
+          (httpStatus === 409
+            ? 'ERR_DUPLICATE_VEHICLE'
+            : httpStatus === 400
+            ? 'ERR_INVALID_PAYLOAD'
+            : httpStatus === 401
+            ? 'ERR_UNAUTHORIZED'
+            : httpStatus === 403
+            ? 'ERR_FORBIDDEN'
+            : httpStatus === 404
+            ? 'ERR_ENDPOINT_NOT_FOUND'
+            : httpStatus === 405
+            ? 'ERR_METHOD_NOT_ALLOWED'
+            : httpStatus === 429
+            ? 'ERR_RATE_LIMIT'
+            : 'ERR_DATABASE_WRITE_FAILURE');
+
+        const userMessage =
           errorData?.message ||
-            errorData?.error ||
-            `Failed to issue certificate on server database (HTTP ${res?.status || 500})`
-        );
+          (httpStatus === 409
+            ? 'Certificate already exists for this vehicle in the central registry.'
+            : httpStatus === 404
+            ? 'API route /api/certificates not reached on serverless deployment.'
+            : httpStatus === 401 || httpStatus === 403
+            ? 'Administrator session unauthorized. Please check credentials.'
+            : `Failed to issue certificate on server database (HTTP ${httpStatus})`);
+
+        if (errorData?.isDuplicateVehicle && errorData.existingCertificate) {
+          setDuplicateCert(errorData.existingCertificate);
+        }
+
+        const diag: DiagnosticErrorDetails = {
+          httpStatus,
+          errorCode,
+          message: userMessage,
+          endpoint: getApiUrl('/api/certificates'),
+          requestId,
+          timestamp: errorData?.timestamp || new Date().toISOString(),
+          details: errorData?.error || rawBody || undefined,
+          isDuplicate: Boolean(errorData?.isDuplicateVehicle),
+        };
+
+        setDiagnosticError(diag);
+        setErrorMessage(userMessage);
+        setIsSubmitting(false);
+        setShowConfirmModal(false);
+        return;
       }
 
       const createdCertificate: Certificate = await res.json();
@@ -427,7 +497,18 @@ export const CreateCertificateForm: React.FC<CreateCertificateFormProps> = ({
       onCertificateCreated(createdCertificate);
     } catch (err: any) {
       console.error('Certificate creation failed:', err);
-      setErrorMessage(err.message || 'Failed to issue certificate. Please check server connection.');
+      const userMessage = err?.message || 'Failed to issue certificate. Network request could not complete.';
+      const diag: DiagnosticErrorDetails = {
+        httpStatus: 'CLIENT_NETWORK_ERROR',
+        errorCode: 'ERR_NETWORK_DISCONNECTED',
+        message: userMessage,
+        endpoint: getApiUrl('/api/certificates'),
+        requestId: `req-client-${Date.now().toString(36)}`,
+        timestamp: new Date().toISOString(),
+        details: String(err?.stack || err),
+      };
+      setDiagnosticError(diag);
+      setErrorMessage(userMessage);
       setIsSubmitting(false);
       setShowConfirmModal(false);
     }
@@ -658,8 +739,96 @@ export const CreateCertificateForm: React.FC<CreateCertificateFormProps> = ({
         </div>
       )}
 
-      {/* General Error Message */}
-      {errorMessage && (
+      {/* Real-time Diagnostic Error Banner */}
+      {diagnosticError && (
+        <div className="m-4 sm:m-6 mb-0 p-4 sm:p-5 bg-gradient-to-br from-rose-50 via-rose-50/80 to-slate-50 border-2 border-rose-400 rounded-xl text-rose-950 shadow-md">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-rose-200 pb-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
+              <h4 className="font-bold text-sm text-rose-950 uppercase tracking-wide">
+                Server Issue Diagnosed
+              </h4>
+              <span className="px-2 py-0.5 bg-rose-200 text-rose-900 font-mono text-xs font-bold rounded">
+                HTTP {diagnosticError.httpStatus}
+              </span>
+              <span className="px-2 py-0.5 bg-slate-200 text-slate-800 font-mono text-[11px] font-semibold rounded">
+                {diagnosticError.errorCode}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const report = JSON.stringify(diagnosticError, null, 2);
+                  navigator.clipboard.writeText(report);
+                  setCopiedDiagnostic(true);
+                  setTimeout(() => setCopiedDiagnostic(false), 2500);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-rose-300 hover:bg-rose-100/50 text-rose-900 rounded-lg text-xs font-semibold cursor-pointer shadow-xs transition-colors"
+                title="Copy structured diagnostic report to clipboard"
+              >
+                {copiedDiagnostic ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-emerald-700 font-bold">Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5 text-rose-600" />
+                    <span>Copy Diagnostic Details</span>
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDiagnosticError(null);
+                  setErrorMessage(null);
+                }}
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-md cursor-pointer"
+                title="Dismiss"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          <div className="pt-3 space-y-2.5">
+            <p className="text-sm font-semibold text-rose-900 leading-snug">
+              {diagnosticError.message}
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-[11px] font-mono">
+              <div className="bg-white/80 border border-rose-200/90 rounded-md p-2">
+                <span className="text-slate-500 block text-[10px] uppercase font-sans">Endpoint:</span>
+                <span className="text-slate-900 font-bold truncate block">POST {diagnosticError.endpoint}</span>
+              </div>
+              <div className="bg-white/80 border border-rose-200/90 rounded-md p-2">
+                <span className="text-slate-500 block text-[10px] uppercase font-sans">Request / Trace ID:</span>
+                <span className="text-slate-900 font-bold truncate block">{diagnosticError.requestId}</span>
+              </div>
+              <div className="bg-white/80 border border-rose-200/90 rounded-md p-2">
+                <span className="text-slate-500 block text-[10px] uppercase font-sans">Timestamp:</span>
+                <span className="text-slate-900 truncate block">{diagnosticError.timestamp}</span>
+              </div>
+            </div>
+
+            {diagnosticError.details && (
+              <div className="bg-slate-900 text-slate-200 p-2.5 rounded-lg text-xs font-mono overflow-x-auto max-h-24">
+                <div className="text-[10px] text-slate-400 mb-1 flex items-center gap-1 font-sans">
+                  <Terminal className="w-3 h-3" />
+                  <span>Server Diagnostic Log:</span>
+                </div>
+                <div className="whitespace-pre-wrap">{diagnosticError.details}</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Fallback Simple Error if diagnosticError is not present */}
+      {!diagnosticError && errorMessage && (
         <div className="m-4 sm:m-6 mb-0 p-3.5 sm:p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-3 text-rose-800 text-xs">
           <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
           <div className="flex-1 font-semibold">{errorMessage}</div>

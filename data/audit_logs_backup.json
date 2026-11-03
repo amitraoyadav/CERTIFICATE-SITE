@@ -1,5 +1,44 @@
 [
   {
+    "id": "audit-1793727796244-e43b384b",
+    "timestamp": "2026-11-03T17:43:16.244Z",
+    "certificateId": "cert-1793727796219-632565f7750a",
+    "certificateNumber": "PS/26/RE82M5K",
+    "action": "CERTIFICATE_CREATED",
+    "actor": "administrator",
+    "newStatus": "VALID",
+    "dataHash": "900b6e56c464db895499ff7a2c0447894bd51a1a89cf8b7fe4866c141ab45ce4",
+    "details": "Official certificate PS/26/RE82M5K created for AUTHORIZED RE-REGISTRATION with verified unique random allocation.",
+    "ip": "127.0.0.1",
+    "userAgent": "Unknown"
+  },
+  {
+    "id": "audit-1793727796205-551e3e07",
+    "timestamp": "2026-11-03T17:43:16.205Z",
+    "certificateId": "cert-1793727796177-d0ebf50a71b3",
+    "certificateNumber": "PS/26/RRATD2R",
+    "action": "CERTIFICATE_CREATED",
+    "actor": "administrator",
+    "newStatus": "VALID",
+    "dataHash": "bc2b77aa64035983720b6c1a8787b4df0f268716d9d216271b8dd376272759dd",
+    "details": "Official certificate PS/26/RRATD2R created for DIAGNOSTIC TEST PASSENGER with verified unique random allocation.",
+    "ip": "127.0.0.1",
+    "userAgent": "Unknown"
+  },
+  {
+    "id": "audit-1793727485018-c36de81e",
+    "timestamp": "2026-11-03T17:38:05.018Z",
+    "certificateId": "cert-1793727484966-068d19783777",
+    "certificateNumber": "PS/26/R4FM936",
+    "action": "CERTIFICATE_CREATED",
+    "actor": "administrator",
+    "newStatus": "VALID",
+    "dataHash": "2adbac8c32794f6e18e58277c302a6b9c54e13e23d4ac0f186ba630459a0a884",
+    "details": "Official certificate PS/26/R4FM936 created for DIAGNOSTIC TEST OWNER with verified unique random allocation.",
+    "ip": "127.0.0.1",
+    "userAgent": "Unknown"
+  },
+  {
     "id": "audit-1793723466485-79c4b334",
     "timestamp": "2026-11-03T16:31:06.485Z",
     "certificateId": "cert-1793723466455-4800e5da3c5d",
