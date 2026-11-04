@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 
-export const MAIN_ADMIN_PASSWORD = process.env.MAIN_ADMIN_PASSWORD || 'Scrapbyparivahan';
+export const MAIN_ADMIN_PASSWORD =
+  process.env.ADMIN_PASSWORD || process.env.MAIN_ADMIN_PASSWORD || 'Scrapbyparivahan';
 export const MAIN_ADMIN_TIMEOUT_MS = 15 * 60 * 1000;
 
 export function verifyMainAdminPassword(provided?: string): boolean {

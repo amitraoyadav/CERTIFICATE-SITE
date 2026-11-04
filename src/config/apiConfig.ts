@@ -1,8 +1,9 @@
 /**
  * API Configuration Module for Multi-Environment Deployment (AI Studio / Vercel / Custom Node Backend)
  */
-export const API_BASE_URL: string =
+const rawBase =
   (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_URL) || '';
+export const API_BASE_URL: string = String(rawBase).trim().replace(/\/+$/, '');
 
 /**
  * Returns the fully qualified URL for an API endpoint based on environment configuration.

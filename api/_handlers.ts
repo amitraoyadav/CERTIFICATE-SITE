@@ -16,11 +16,13 @@ import {
   computeCanonicalHash,
   deduplicateCertificates,
   certCreationMutex,
+  getFirebaseDiagnostics,
 } from './_db.ts';
 import { isMainAdminTokenValid, MAIN_ADMIN_TIMEOUT_MS } from './_auth.ts';
 import type { Certificate, SystemSettings, DashboardStats, PublicVerificationResponse } from '../src/types.ts';
 
-const MAIN_ADMIN_PASSWORD = process.env.MAIN_ADMIN_PASSWORD || 'Scrapbyparivahan';
+const MAIN_ADMIN_PASSWORD =
+  process.env.ADMIN_PASSWORD || process.env.MAIN_ADMIN_PASSWORD || 'Scrapbyparivahan';
 const ADMIN_DELETION_PASSWORD = 'Admin00';
 
 function verifyProtectedPassword(provided?: string): boolean {
@@ -205,11 +207,21 @@ export async function handleApiRequest(req: any, res: any) {
   // 1. Health check: /api/health
   // ----------------------------------------------------
   if (pathname === '/api/health') {
+    const diag = getFirebaseDiagnostics();
+    const certs = getDatabaseCertificates();
     return res.status(200).json({
       status: 'UP',
       uptime: process.uptime(),
       timestamp: new Date().toISOString(),
       platform: 'Vercel Serverless (Consolidated Router)',
+      database: {
+        totalCertificates: certs.length,
+        firestoreAdminInitialized: diag.firestoreAdminInitialized,
+        effectiveProjectId: diag.effectiveProjectId,
+        effectiveDatabaseId: diag.effectiveDatabaseId,
+        liveDatabaseSyncUrl: diag.liveDatabaseUrl,
+      },
+      environmentAudit: diag.envVarsConfigured,
     });
   }
 
@@ -230,6 +242,9 @@ export async function handleApiRequest(req: any, res: any) {
     const cleanUser = rawUser.toLowerCase();
     const cleanPass = rawPass;
 
+    const envUser = process.env.ADMIN_USERNAME?.toLowerCase().trim();
+    const envPass = process.env.ADMIN_PASSWORD?.trim() || process.env.MAIN_ADMIN_PASSWORD?.trim();
+
     const validUsers = [
       'pscrappers',
       'admin',
@@ -238,6 +253,9 @@ export async function handleApiRequest(req: any, res: any) {
       'parivahan-scrappers',
       'raoamityadavak123@gmail.com',
     ];
+    if (envUser && !validUsers.includes(envUser)) {
+      validUsers.push(envUser);
+    }
 
     const isUsernameValid =
       validUsers.includes(cleanUser) ||
@@ -245,6 +263,9 @@ export async function handleApiRequest(req: any, res: any) {
       cleanUser.startsWith('admin');
 
     const validPasswords = ['Scrap123', 'Scrap00', 'Scrapbyparivahan', 'admin123', 'Admin00'];
+    if (envPass && !validPasswords.includes(envPass)) {
+      validPasswords.push(envPass);
+    }
 
     const isPasswordValid = validPasswords.some(
       (vp) => cleanPass === vp || cleanPass.toLowerCase() === vp.toLowerCase()

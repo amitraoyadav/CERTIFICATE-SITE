@@ -99,7 +99,11 @@ let firestoreInstance: Firestore | null = null;
 let firestoreInitialized = false;
 
 /**
- * Initializes Firebase Admin Firestore if credentials/config are available
+ * Initializes Firebase Admin Firestore if credentials/config are available.
+ * Fully supports individual Vercel environment variables:
+ * - FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY (with automatic newline unescaping)
+ * - FIREBASE_SERVICE_ACCOUNT (raw JSON string or base64 encoded)
+ * - FIREBASE_PROJECT_ID & FIREBASE_DATABASE_ID
  */
 export function getFirestoreAdmin(): Firestore | null {
   if (firestoreInitialized) return firestoreInstance;
@@ -114,9 +118,27 @@ export function getFirestoreAdmin(): Firestore | null {
       } catch {}
     }
 
+    const effectiveProjectId =
+      process.env.FIREBASE_PROJECT_ID ||
+      firebaseConfig?.projectId ||
+      'gen-lang-client-0059461259';
+
+    const effectiveDatabaseId =
+      process.env.FIREBASE_DATABASE_ID ||
+      firebaseConfig?.firestoreDatabaseId ||
+      'ai-studio-parivahanscrappe-6de1b59b-dcec-4d6e-8133-a73555223c5e';
+
+    const clientEmail =
+      process.env.FIREBASE_CLIENT_EMAIL ||
+      process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
+
+    let privateKey =
+      process.env.FIREBASE_PRIVATE_KEY ||
+      process.env.FIREBASE_ADMIN_PRIVATE_KEY;
+
     const serviceAccountEnv =
-      process.env.FIREBASE_SERVICE_ACCOUNT_KEY ||
       process.env.FIREBASE_SERVICE_ACCOUNT ||
+      process.env.FIREBASE_SERVICE_ACCOUNT_KEY ||
       process.env.FIREBASE_ADMIN_CREDENTIALS ||
       process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
 
@@ -124,34 +146,108 @@ export function getFirestoreAdmin(): Firestore | null {
     const existingApps = getApps();
     if (existingApps.length > 0) {
       app = existingApps[0];
-    } else if (serviceAccountEnv) {
+    } else if (clientEmail && privateKey) {
+      // 1. Individual environment variables (Standard Vercel pattern)
+      const cleanKey = privateKey.replace(/\\n/g, '\n').replace(/^["']|["']$/g, '').trim();
+      app = initializeApp({
+        credential: cert({
+          projectId: effectiveProjectId,
+          clientEmail: clientEmail.trim(),
+          privateKey: cleanKey,
+        }),
+        projectId: effectiveProjectId,
+      });
+    } else if (serviceAccountEnv && typeof serviceAccountEnv === 'string' && serviceAccountEnv.trim()) {
+      // 2. Full Service Account JSON or Base64 string
       let saObj: any;
       try {
         saObj = JSON.parse(serviceAccountEnv);
       } catch {
-        saObj = JSON.parse(Buffer.from(serviceAccountEnv, 'base64').toString('utf-8'));
+        try {
+          saObj = JSON.parse(Buffer.from(serviceAccountEnv, 'base64').toString('utf-8'));
+        } catch (jsonErr) {
+          console.warn('[DB] Failed to parse service account JSON:', jsonErr);
+        }
       }
+      if (saObj) {
+        if (typeof saObj.private_key === 'string') {
+          saObj.private_key = saObj.private_key.replace(/\\n/g, '\n').replace(/^["']|["']$/g, '').trim();
+        }
+        app = initializeApp({
+          credential: cert(saObj),
+          projectId: saObj.project_id || effectiveProjectId,
+        });
+      }
+    } else if (effectiveProjectId) {
+      // 3. Ambient project initialization
       app = initializeApp({
-        credential: cert(saObj),
-        projectId: saObj.project_id || firebaseConfig?.projectId,
-      });
-    } else if (firebaseConfig?.projectId) {
-      app = initializeApp({
-        projectId: firebaseConfig.projectId,
+        projectId: effectiveProjectId,
       });
     }
 
-    if (app && firebaseConfig?.firestoreDatabaseId) {
-      firestoreInstance = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+    if (app && effectiveDatabaseId && effectiveDatabaseId !== '(default)') {
+      firestoreInstance = getFirestore(app, effectiveDatabaseId);
     } else if (app) {
       firestoreInstance = getFirestore(app);
     }
   } catch (err: any) {
-    console.warn('[DB] Firestore Admin initialization note:', err?.message || err);
+    console.warn('[DB] Firestore Admin initialization notice:', err?.message || err);
     firestoreInstance = null;
   }
 
   return firestoreInstance;
+}
+
+/**
+ * Returns non-sensitive diagnostics for environment variable auditing and health checks
+ */
+export function getFirebaseDiagnostics() {
+  const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
+  let hasConfigFile = false;
+  let fileProjectId = '';
+  let fileDbId = '';
+  if (fs.existsSync(configPath)) {
+    hasConfigFile = true;
+    try {
+      const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      fileProjectId = cfg.projectId || '';
+      fileDbId = cfg.firestoreDatabaseId || '';
+    } catch {}
+  }
+
+  const effectiveProjectId =
+    process.env.FIREBASE_PROJECT_ID || fileProjectId || 'gen-lang-client-0059461259';
+  const effectiveDatabaseId =
+    process.env.FIREBASE_DATABASE_ID || fileDbId || 'ai-studio-parivahanscrappe-6de1b59b-dcec-4d6e-8133-a73555223c5e';
+
+  const hasClientEmail = Boolean(process.env.FIREBASE_CLIENT_EMAIL);
+  const hasPrivateKey = Boolean(process.env.FIREBASE_PRIVATE_KEY);
+  const hasServiceAccount = Boolean(
+    process.env.FIREBASE_SERVICE_ACCOUNT ||
+      process.env.FIREBASE_SERVICE_ACCOUNT_KEY ||
+      process.env.FIREBASE_ADMIN_CREDENTIALS ||
+      process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
+  );
+
+  const adminDb = getFirestoreAdmin();
+
+  return {
+    hasConfigFile,
+    effectiveProjectId,
+    effectiveDatabaseId,
+    envVarsConfigured: {
+      FIREBASE_PROJECT_ID: Boolean(process.env.FIREBASE_PROJECT_ID),
+      FIREBASE_DATABASE_ID: Boolean(process.env.FIREBASE_DATABASE_ID),
+      FIREBASE_CLIENT_EMAIL: hasClientEmail,
+      FIREBASE_PRIVATE_KEY: hasPrivateKey,
+      FIREBASE_SERVICE_ACCOUNT: hasServiceAccount,
+      ADMIN_USERNAME: Boolean(process.env.ADMIN_USERNAME),
+      ADMIN_PASSWORD: Boolean(process.env.ADMIN_PASSWORD),
+      LIVE_DATABASE_URL: Boolean(process.env.LIVE_DATABASE_URL),
+    },
+    firestoreAdminInitialized: Boolean(adminDb),
+    liveDatabaseUrl: LIVE_DATABASE_URL,
+  };
 }
 
 /**
@@ -926,17 +1022,16 @@ export async function createAndSaveCertificateRecord(payload: any, req?: any): P
 
   newCertificate.dataHash = computeCanonicalHash(newCertificate);
 
-  // 1. Synchronously commit to persistent remote storage (Live Database and/or Firestore)
+  // 1. Commit to persistent remote storage in parallel (Cloud Firestore + Live Database Sync)
   const isSelfCall = req?.headers?.['x-forwarded-host']?.includes('ai.studio') || process.env.IS_PRIMARY_HOST === 'true';
+  const persistTasks: Promise<any>[] = [saveToFirestore(newCertificate)];
   if (!isSelfCall) {
-    // If running in Vercel or non-primary instance: commit synchronously to live backend
-    await persistCertificateToLiveBackend(newCertificate);
+    // If running in Vercel or non-primary instance: sync with live backend concurrently
+    persistTasks.push(persistCertificateToLiveBackend(newCertificate));
   }
+  await Promise.allSettled(persistTasks);
 
-  // 2. Commit to Cloud Firestore if Firestore Admin is configured
-  await saveToFirestore(newCertificate);
-
-  // 3. Update local caches and files
+  // 2. Update local caches and scratch files
   const updated = [newCertificate, ...certs];
   saveDatabaseCertificates(updated);
 
